@@ -46,6 +46,8 @@ import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.SectionCard
 import com.forgeprom.studio.ui.components.StatusChip
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import kotlinx.coroutines.launch
 
 /**
@@ -231,7 +233,7 @@ private fun LanguageSection() {
                         if (current != code) {
                             store.set(code)
                             current = code
-                            (context as? Activity)?.recreate()
+                            context.findActivity()?.recreate()
                         }
                     },
                     label = { Text(label) }
@@ -244,4 +246,11 @@ private fun LanguageSection() {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+/** Compose يمرّر سياقاً ملفوفاً؛ نفكّ الغلاف للوصول إلى النشاط. */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

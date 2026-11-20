@@ -8,8 +8,7 @@ import android.content.Context
  */
 class LanguageStore(context: Context) {
 
-    private val prefs = context.applicationContext
-        .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun current(): String = prefs.getString(KEY, AR)?.takeIf { it == AR || it == EN } ?: AR
 
