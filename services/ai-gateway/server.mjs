@@ -1,6 +1,7 @@
 import { generate } from './provider.mjs';
 import { createServer } from 'node:http';
 import { createAccess, consume } from './access.mjs';
+import { createWebSearch, webQuery } from './web-search.mjs';
 
 const { GATEWAY_TOKEN, GATEWAY_ACCOUNTS, DATABASE_URL, OPENAI_API_KEY, OPENAI_MODEL, PORT = '8080' } = process.env;
 if (!OPENAI_API_KEY || !OPENAI_MODEL) throw new Error('Configure OPENAI_API_KEY and OPENAI_MODEL');
@@ -17,6 +18,7 @@ const story = storyModule?.createStory(DATABASE_URL, OPENAI_API_KEY);
 const billingModule = process.env.ENABLE_BILLING === '1' ? await import('./billing.mjs') : null;
 if (billingModule && !DATABASE_URL) throw new Error('Billing requires DATABASE_URL');
 const billing = billingModule?.createBilling(DATABASE_URL, process.env.STRIPE_SECRET_KEY, process.env.STRIPE_CUSTOMERS);
+const webSearch = process.env.ENABLE_WEB_SEARCH === '1' ? createWebSearch(process.env.BRAVE_SEARCH_API_KEY) : null;
 let active = 0;
 const metrics = { accepted: 0, upstreamFailures: 0, completed: 0, upstreamLatencyMs: 0 };
 
@@ -35,6 +37,29 @@ createServer(async (req, res) => {
   if (usage && req.method === 'GET' && req.url === '/v1/usage') {
     try { return send(res, 200, { days: await usage.recent(account.key) }); }
     catch { return send(res, 503, { error: 'Usage service unavailable' }); }
+  }
+  if (req.url === '/v1/web/search') {
+    if (!webSearch || req.method !== 'POST') return send(res, 404, { error: 'Not found' });
+    if (active >= 4) return send(res, 429, { error: 'Gateway busy' }, { 'Retry-After': '2' });
+    active++;
+    try {
+      const retryAfter = await takeQuota(account);
+      if (retryAfter) return send(res, 429, { error: 'Account limit reached' }, { 'Retry-After': String(retryAfter) });
+      const chunks = [];
+      let length = 0;
+      for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+        length += chunk.length;
+        if (length > 4096) return send(res, 413, { error: 'Body too large' }, { Connection: 'close' });
+        chunks.push(chunk);
+      }
+      let query;
+      try { query = webQuery(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { return send(res, 400, { error: 'Invalid JSON' }); }
+      if (!query) return send(res, 400, { error: 'Expected a query up to 300 UTF-16 units without control characters' });
+      return send(res, 200, { results: await webSearch(query) });
+    } catch {
+      return send(res, 503, { error: 'Web search unavailable' });
+    } finally { active--; }
   }
   if (billing && req.url === '/v1/billing/invoices' && ['GET', 'POST'].includes(req.method)) {
     if (req.method === 'POST' && !account.admin) return send(res, 403, { error: 'Forbidden' });

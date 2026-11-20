@@ -22,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
+import com.forgeprom.studio.core.ai.generationContext
 import com.forgeprom.studio.core.settings.AppSettings
 import com.forgeprom.studio.domain.Critique
 import com.forgeprom.studio.domain.PromptBuilder
@@ -93,11 +94,14 @@ fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
                         try {
                             val engine = container.engines.defaultForTask("general")
                             val editedDraft = draft.copy(summary = summary)
-                            val result = engine.generate(
+                            val result = if (!engine.isLocal && container.engines.cloudGate().isFailure) {
+                                Result.failure(SecurityException("موافقة السحابة غير ممنوحة"))
+                            } else engine.generate(
                                 com.forgeprom.studio.core.ai.GenerationRequest(
                                     instruction = container.session.sourceInstruction,
                                     goal = container.session.goal,
                                     tech = container.session.tech,
+                                    projectContext = container.session.imageAnalysis?.generationContext().orEmpty(),
                                     promptLanguage = settings.promptLanguage,
                                     isImageInspired = container.session.isImageInspired
                                 )

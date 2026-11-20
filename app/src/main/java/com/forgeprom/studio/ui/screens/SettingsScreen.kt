@@ -178,6 +178,6 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
         }
 
         OutlinedButton(onClick = onAbout, modifier = Modifier.fillMaxWidth()) { Text("حول التطبيق") }
-        PhaseNote("التشفير عبر EncryptedSharedPreferences من AndroidX Security. النموذج العصبي المحلي قيد التكامل — المحرك المحلي الحالي قاعدي.")
+        PhaseNote("التشفير عبر EncryptedSharedPreferences من AndroidX Security. يمكن إدارة النموذج العصبي المحلي الاختياري من شاشة المحركات.")
     }
 }

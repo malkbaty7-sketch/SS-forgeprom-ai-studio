@@ -3,6 +3,7 @@ package com.forgeprom.studio.core
 import android.content.Context
 import com.forgeprom.studio.core.ai.AiEngineManager
 import com.forgeprom.studio.core.ai.GeminiEngine
+import com.forgeprom.studio.core.ai.LocalNeuralEngine
 import com.forgeprom.studio.core.ai.LocalRulesEngine
 import com.forgeprom.studio.core.ai.OpenAiCompatEngine
 import com.forgeprom.studio.core.data.ForgepromDatabase
@@ -42,10 +43,12 @@ class AppContainer(context: Context) {
 
     val settings: SettingsStore = SettingsStore(context)
     val apiKeys: ApiKeyStore = ApiKeyStore(context)
+    val neuralEngine = LocalNeuralEngine(context)
     val engines: AiEngineManager = AiEngineManager(
         settingsStore = settings,
         apiKeyStore = apiKeys,
         localEngine = LocalRulesEngine(),
+        neuralEngine = neuralEngine,
         geminiEngine = GeminiEngine(apiKeys),
         openAiEngine = OpenAiCompatEngine(apiKeys)
     )

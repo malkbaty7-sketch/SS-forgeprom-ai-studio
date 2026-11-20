@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +30,7 @@ import com.forgeprom.studio.core.settings.AppSettings
 import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.SectionCard
 import com.forgeprom.studio.ui.components.StatusChip
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -38,7 +42,34 @@ fun ModelsScreen(container: AppContainer) {
     val scope = rememberCoroutineScope()
     var statuses by remember { mutableStateOf<List<EngineStatus>>(emptyList()) }
 
-    LaunchedEffect(settings.cloudConsent) {
+    var modelBusy by remember { mutableStateOf(false) }
+    var modelMessage by remember { mutableStateOf("") }
+    var modelRevision by remember { mutableStateOf(0) }
+    fun changeModel(success: String, action: suspend () -> Unit) {
+        modelBusy = true
+        modelMessage = ""
+        scope.launch {
+            try {
+                action()
+                modelMessage = success
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                modelMessage = "تعذّر تغيير النموذج. تحقّق من توافق الحزمة والمساحة المتاحة."
+            } catch (_: LinkageError) {
+                modelMessage = "مكتبة الاستدلال غير متاحة على هذا الجهاز."
+            } finally {
+                modelBusy = false
+                modelRevision++
+            }
+        }
+    }
+    val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) changeModel("ثُبّت النموذج محليًا.") { container.neuralEngine.install(uri) }
+    }
+    val neuralReady = statuses.any { it.id == container.neuralEngine.id && it.isReady }
+
+    LaunchedEffect(settings.cloudConsent, modelRevision) {
         statuses = container.engines.allEngines().map { it.status(settings) }
     }
 
@@ -64,6 +95,17 @@ fun ModelsScreen(container: AppContainer) {
             }
         }
 
+        SectionCard("النموذج العصبي على الجهاز") {
+            Text("استورد حزمة MediaPipe LLM بصيغة .task من مصدر موثوق (حتى 4 جيبيبايت). لا تُرفق حزمة مع التطبيق، ولا يُرسل النص إلى الشبكة عند استخدام النموذج المحلي.")
+            OutlinedButton(enabled = !modelBusy && container.neuralEngine.supportedDevice, onClick = {
+                modelPicker.launch(arrayOf("*/*"))
+            }) { Text(if (modelBusy) "جارٍ تجهيز النموذج…" else "استيراد نموذج محلي") }
+            if (neuralReady) OutlinedButton(enabled = !modelBusy, onClick = {
+                changeModel("حُذف النموذج من الجهاز.") { container.neuralEngine.remove() }
+            }) { Text("إزالة النموذج") }
+            if (modelMessage.isNotEmpty()) Text(modelMessage)
+        }
+
         SectionCard("المحرك الافتراضي لكل مهمة") {
             listOf(
                 "general" to "التوليد العام",
@@ -77,17 +119,22 @@ fun ModelsScreen(container: AppContainer) {
                         "code" -> settings.engineCode
                         else -> settings.engineAnalysis
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            "local.rules" to "محلي",
-                            "cloud.gemini" to "Gemini",
-                            "cloud.openai_compat" to "متوافق OpenAI"
-                        ).forEach { (id, name) ->
-                            FilterChip(
-                                selected = current == id,
-                                onClick = { scope.launch { container.settings.setEngineForTask(task, id) } },
-                                label = { Text(name) }
-                            )
+                    val options = buildList {
+                        add("local.rules" to "محلي قاعدي")
+                        if (task == "general") add(container.neuralEngine.id to "محلي عصبي")
+                        add("cloud.gemini" to "Gemini")
+                        add("cloud.openai_compat" to "متوافق OpenAI")
+                    }
+                    options.chunked(2).forEach { group ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            group.forEach { (id, name) ->
+                                FilterChip(
+                                    selected = current == id,
+                                    enabled = id != container.neuralEngine.id || (neuralReady && !modelBusy),
+                                    onClick = { scope.launch { container.settings.setEngineForTask(task, id) } },
+                                    label = { Text(name) }
+                                )
+                            }
                         }
                     }
                 }
@@ -95,7 +142,7 @@ fun ModelsScreen(container: AppContainer) {
         }
 
         PhaseNote(
-            "المحرك المحلي الحالي قاعدي (قواعد عربية) ويعمل دون إنترنت بالكامل. النموذج العصبي المحلي قيد التكامل لاحقاً. المحركات السحابية لا تُستخدم إلا بعد موافقتك الصريحة وإدخال مفتاحك."
+            "المحرك القاعدي والنموذج العصبي المثبّت يعملان دون إنترنت. المحركات السحابية لا تُستخدم إلا بعد موافقتك الصريحة وإدخال مفتاحك."
         )
     }
 }
