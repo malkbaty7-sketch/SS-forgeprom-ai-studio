@@ -50,12 +50,14 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
                 val messages = JSONArray()
                     .put(JSONObject().put("role", "system").put(
                         "content",
-                        "You generate professional coding PROMPTS (not code) for AI code platforms. " +
+                        if (request.cinematicEdit) com.forgeprom.studio.domain.CinematicEdit.SYSTEM
+                        else "You generate professional coding PROMPTS (not code) for AI code platforms. " +
                             "Always include: role, objective, context, request type, tech stack, UI spec, states, interactions, accessibility, anti-bloat code quality constraints, acceptance criteria, output format. State assumptions explicitly."
                     ))
                     .put(JSONObject().put("role", "user").put(
                         "content",
-                        "Goal: " + request.goal + "\nTech: " + request.tech +
+                        if (request.cinematicEdit) request.instruction
+                        else "Goal: " + request.goal + "\nTech: " + request.tech +
                             (if (request.projectContext.isNotBlank()) "\nProject context: " + request.projectContext else "") +
                             "\nRequest: " + request.instruction
                     ))

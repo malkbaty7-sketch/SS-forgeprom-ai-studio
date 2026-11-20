@@ -148,6 +148,7 @@ class GeminiEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
         private const val MODEL = "gemini-2.0-flash"
 
         fun buildSystemPrompt(request: GenerationRequest): String {
+            if (request.cinematicEdit) return com.forgeprom.studio.domain.CinematicEdit.SYSTEM + "\n" + request.instruction
             return "Generate a complete professional coding prompt (the instructions to give an AI code-generation platform), " +
                 "NOT the app code itself. " +
                 (if (request.promptLanguage == com.forgeprom.studio.core.settings.PromptLanguage.EN)

@@ -1,6 +1,14 @@
 package com.forgeprom.studio.ui.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import com.forgeprom.studio.domain.CinematicEdit
+import kotlinx.coroutines.CancellationException
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,10 +54,21 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     }
 
     var title by remember { mutableStateOf(prompt.title) }
-    var content by remember { mutableStateOf(prompt.content) }
+    var field by remember(promptId) { mutableStateOf(TextFieldValue(prompt.content)) }
+    val content = field.text
+    var edit by remember(promptId) { mutableStateOf<CinematicEdit?>(null) }
+
+    edit?.let { snapshot ->
+        SmartEditDialog(container, snapshot, onDismiss = { edit = null }) { replacement ->
+            snapshot.apply(field.text, replacement)?.let { updated ->
+                field = TextFieldValue(updated, TextRange(snapshot.start + replacement.length))
+            }
+            edit = null
+        }
+    }
 
     Column(
-        Modifier.fillMaxSize().padding(16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         OutlinedTextField(
@@ -59,12 +78,19 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
-            value = content,
-            onValueChange = { content = it },
+            value = field,
+            onValueChange = { field = it },
             label = { Text("نص الموجه") },
-            minLines = 10,
+            minLines = 6,
+            maxLines = 12,
             modifier = Modifier.fillMaxWidth()
         )
+        val selection = field.selection
+        if (!selection.collapsed && content.substring(selection.min, selection.max).isNotBlank()) {
+            OutlinedButton(onClick = { edit = CinematicEdit(content, selection.min, selection.max) }) {
+                Text("تعديل ذكي")
+            }
+        }
         Text(
             "الكلمات: " + content.trim().split(Regex("\\s+")).count { it.isNotBlank() } +
                 " • الأحرف: " + content.length,
@@ -93,4 +119,73 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
             }) { Text("تصدير MD") }
         }
     }
+}
+
+@Composable
+private fun SmartEditDialog(
+    container: AppContainer,
+    edit: CinematicEdit,
+    onDismiss: () -> Unit,
+    onApply: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var direction by remember { mutableStateOf("") }
+    var preview by remember { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("المخرج التفاعلي") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("يُرسل التحديد وتعليماتك فقط إلى مزوّد التوليد السحابي المختار.")
+                Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
+                OutlinedTextField(
+                    value = direction,
+                    onValueChange = { direction = it.take(500); preview = null; error = null },
+                    enabled = !busy,
+                    label = { Text("مثال: أضف صوت المطر") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (edit.selection.length > 8_000) Text("حدّد مقطعاً لا يتجاوز ٨٠٠٠ حرف.")
+                if (busy) Text("جارٍ إعداد الاقتراح…")
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                preview?.let { Text("الاقتراح:"); Text(it) }
+            }
+        },
+        confirmButton = {
+            val replacement = preview
+            if (replacement != null) Button(onClick = { onApply(replacement) }) { Text("تطبيق") }
+            else Button(
+                enabled = !busy && direction.isNotBlank() && edit.selection.length <= 8_000,
+                onClick = {
+                    busy = true
+                    error = null
+                    scope.launch {
+                        try {
+                            val settings = container.engines.cloudGate().getOrNull()
+                            if (settings == null) {
+                                error = "فعّل الموافقة السحابية من الإعدادات أولاً."
+                                return@launch
+                            }
+                            val engine = container.engines.engineById(settings.engineGeneral)
+                            if (engine.isLocal || !engine.status(settings).isReady) {
+                                error = "اختر مزوّداً سحابياً جاهزاً للتوليد العام من شاشة النماذج."
+                                return@launch
+                            }
+                            preview = engine.generate(edit.request(direction)).getOrThrow().trim()
+                                .takeIf { it.isNotBlank() } ?: kotlin.error("Empty rewrite")
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            error = "تعذّر إعداد الاقتراح. تحقّق من اتصالك وإعدادات المزوّد ثم أعد المحاولة."
+                        } finally {
+                            busy = false
+                        }
+                    }
+                }
+            ) { Text("اقتراح تعديل") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } }
+    )
 }
