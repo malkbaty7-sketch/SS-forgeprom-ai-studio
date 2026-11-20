@@ -18,7 +18,7 @@ core/
   backup/         SimpleJson + BackupCodec + BackupRepository — تصدير/استعادة دمجية
   registry/       FeatureRegistry — سجل ميزات صادق
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
-domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters — Kotlin نقي
+domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters، EndpointPolicy، UsageSummary، PromptTemplates — Kotlin نقي
 ```
 
 ## تدفق التوليد
@@ -41,6 +41,8 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 ## الخصوصية
 
 - موافقة السحابة مرفوضة افتراضياً — لا استدعاء سحابي دونها.
+- العناوين غير المشفّرة تُرفض في الإعدادات، و`network_security_config` يمنع النص الواضح إلا لتطوير محلي على localhost/10.0.2.2.
+- قاعدة المشاريع والمفاتيح المشفرة والمسودات مستثناة من النسخ الاحتياطي للنظام؛ النسخ الصريح JSON يبقى بيد المستخدم.
 - المفاتيح في EncryptedSharedPreferences (بديل InMemory عند فشل التهيئة).
 - تحليل الصور يرسل الصورة إلى Google فقط بعد الموافقة وإقرار «استلهام فقط».
 
@@ -48,3 +50,4 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 
 - اختبارات JUnit4 لطبقة المجال (`app/src/test/...`) — تشمل الآن البحث العربي والتصفية وترميز المسودات والنسخ الاحتياطي.
 - GitHub Actions: `testDebugUnitTest` ثم `assembleDebug` ثم رفع APK كـ artifact.
+- سير عمل مستقل للبوابة (`gateway.yml`): `npm test` ثم بناء صورة Docker، عند تغيير `services/ai-gateway`.

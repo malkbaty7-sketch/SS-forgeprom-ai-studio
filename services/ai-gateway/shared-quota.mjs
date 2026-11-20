@@ -15,7 +15,13 @@ RETURNING used`;
 export function createSharedQuota(connectionString) {
   const pool = new Pool({ connectionString, max: 5, connectionTimeoutMillis: 2000, query_timeout: 3000, statement_timeout: 3000 });
   pool.on('error', () => console.error('Shared quota database connection failed'));
-  return account => takeSlot(pool, account);
+  const take = account => takeSlot(pool, account);
+  // فحص جاهزية خفيف: لا يكشف بيانات، ويتحقق فقط من إمكانية الوصول للقاعدة.
+  take.ready = async () => {
+    await pool.query('SELECT 1');
+    return true;
+  };
+  return take;
 }
 
 export async function takeSlot(db, account) {

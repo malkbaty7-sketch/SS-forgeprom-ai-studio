@@ -16,6 +16,7 @@ import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
 internal class BillingHttpException(val status: Int) : java.io.IOException()
+internal class UsageHttpException(val status: Int) : java.io.IOException()
 
 /**
  * R5 — محرك متوافق مع OpenAI (متعدد المزودين: OpenAI، Groq، Together، إلخ)
@@ -161,6 +162,24 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
             if (!response.isSuccessful) throw BillingHttpException(response.code)
             JSONObject(response.body?.string().orEmpty()).getJSONArray("invoices").also { invoices ->
                 for (i in 0 until invoices.length()) invoices.getJSONObject(i)
+            }
+        }
+    }
+
+    /** سجل الاستهلاك لآخر 30 يوماً للحساب نفسه — قراءة فقط ولا يغيّر نتيجة التوليد. */
+    internal suspend fun usageDays(): JSONArray = withContext(Dispatchers.IO) {
+        val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+        require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+            base.query == null && base.fragment == null)
+        val key = apiKeyStore.openAiKey()
+        require(key.isNotBlank())
+        val request = Request.Builder()
+            .url(base.newBuilder().addPathSegment("usage").build())
+            .header("Authorization", "Bearer $key").build()
+        jobsClient.newBuilder().callTimeout(20, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw UsageHttpException(response.code)
+            JSONObject(response.body?.string().orEmpty()).getJSONArray("days").also { days ->
+                for (i in 0 until days.length()) days.getJSONObject(i)
             }
         }
     }
