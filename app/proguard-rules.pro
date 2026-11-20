@@ -16,6 +16,8 @@
 # PDFBox وتبعياته الاختيارية
 -keep class com.tom_roush.** { *; }
 -dontwarn org.apache.**
+-dontwarn com.gemalto.**
+-dontwarn com.gemalto.jp2.**
 -dontwarn javax.**
 -dontwarn java.awt.**
 
