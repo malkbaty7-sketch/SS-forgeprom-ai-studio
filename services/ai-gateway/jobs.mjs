@@ -20,10 +20,10 @@ export function createJobs(connectionString) {
       await db.query("UPDATE gateway_jobs SET status='failed',messages=NULL,lease_until=NULL WHERE status='running' AND lease_until<=now()");
       const { rows: [job] } = await db.query(`UPDATE gateway_jobs SET status='running', lease_until=now()+interval '2 minutes'
         WHERE id=(SELECT id FROM gateway_jobs WHERE status='queued' AND expires_at>now()
-                  ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id,messages`);
+                  ORDER BY created_at LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id,messages,account_key`);
       if (!job) return false;
       let result = null;
-      try { result = await generate(job.messages); } catch { /* report failure without storing provider error */ }
+      try { result = await generate(job.messages, job.account_key); } catch { /* report failure without storing provider error */ }
       await db.query("UPDATE gateway_jobs SET status=$2,messages=NULL,result=$3::jsonb,lease_until=NULL WHERE id=$1 AND status='running'",
         [job.id, result === null ? 'failed' : 'done', JSON.stringify(result)]);
       return true;
