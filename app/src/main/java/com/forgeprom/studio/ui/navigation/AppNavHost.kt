@@ -8,26 +8,36 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Scaffold
 import com.forgeprom.studio.ui.i18n.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.forgeprom.studio.R
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -47,14 +57,19 @@ import com.forgeprom.studio.ui.screens.ProjectsScreen
 import com.forgeprom.studio.ui.screens.ResultScreen
 import com.forgeprom.studio.ui.screens.SettingsScreen
 
-private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private data class Tab(
+    val route: String,
+    val label: String,
+    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
 
 private val tabs = listOf(
-    Tab(Destinations.DASHBOARD, "الرئيسية", Icons.Filled.Home),
-    Tab(Destinations.CREATE, "توليد", Icons.Filled.Create),
-    Tab(Destinations.PROJECTS, "المشاريع", Icons.Filled.List),
-    Tab(Destinations.MODELS, "المحركات", Icons.Filled.Build),
-    Tab(Destinations.SETTINGS, "الإعدادات", Icons.Filled.Settings)
+    Tab(Destinations.DASHBOARD, "الرئيسية", Icons.Filled.Home, Icons.Outlined.Home),
+    Tab(Destinations.CREATE, "توليد", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome),
+    Tab(Destinations.PROJECTS, "المشاريع", Icons.Filled.Folder, Icons.Outlined.Folder),
+    Tab(Destinations.MODELS, "المحركات", Icons.Filled.Memory, Icons.Outlined.Memory),
+    Tab(Destinations.SETTINGS, "الإعدادات", Icons.Filled.Tune, Icons.Outlined.Tune)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -83,34 +98,74 @@ fun AppNavHost(container: AppContainer) {
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= 720.dp && maxHeight >= 500.dp
+        val barColors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+        val activeTab = tabs.firstOrNull { it.route == currentRoute }
         Scaffold(
             topBar = {
-                if (detailTitle != null) TopAppBar(title = { Text(detailTitle) }, navigationIcon = {
-                    IconButton(onClick = { nav.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
-                    }
-                })
+                if (detailTitle != null) {
+                    TopAppBar(
+                        title = { Text(detailTitle) },
+                        navigationIcon = {
+                            IconButton(onClick = { nav.popBackStack() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "رجوع")
+                            }
+                        },
+                        colors = barColors
+                    )
+                } else {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                activeTab?.label ?: "Forgeprom",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        },
+                        navigationIcon = {
+                            Icon(
+                                painterResource(R.drawable.ic_brand),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 16.dp)
+                            )
+                        },
+                        colors = barColors
+                    )
+                }
             },
             bottomBar = {
-                if (!wide) NavigationBar {
+                if (!wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     tabs.forEach { tab ->
+                        val selected = currentRoute == tab.route
                         NavigationBarItem(
-                            selected = currentRoute == tab.route,
+                            selected = selected,
                             onClick = { select(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(tab.label, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
+                            icon = {
+                                Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = tab.label)
+                            },
+                            label = { Text(tab.label, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
                     }
                 }
             }
         ) { padding ->
             Row(Modifier.fillMaxSize().padding(padding)) {
-                if (wide) NavigationRail {
+                if (wide) NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     tabs.forEach { tab ->
+                        val selected = currentRoute == tab.route
                         NavigationRailItem(
-                            selected = currentRoute == tab.route,
+                            selected = selected,
                             onClick = { select(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = null) },
+                            icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = tab.label) },
                             label = { Text(tab.label) }
                         )
                     }

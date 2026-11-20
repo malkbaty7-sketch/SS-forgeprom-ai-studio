@@ -42,6 +42,6 @@ class LocalizationResourcesTest {
     @Test
     fun catalogCoversEveryTranslatedResource() {
         // كل مورد له ترجمة إنجليزية يجب أن يكون قابلاً للوصول من الكتالوج
-        assertEquals(548, UiCatalog.ids.size)
+        assertEquals(554, UiCatalog.ids.size)
     }
 }

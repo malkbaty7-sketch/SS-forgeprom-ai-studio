@@ -553,5 +553,11 @@ object UiCatalog {
         "مكوّن TokenEstimateCard مغطّى باختبارين عبر Robolectric داخل CI" to R.string.fx063,
         "واجهة عربية وإنجليزية" to R.string.fx064,
         "العربية افتراضية والإنجليزية عبر values-en وكتالوج ترجمة؛ 13 نصاً ديناميكياً ورسائل المشاركة خارج التغطية" to R.string.fx065,
+        "مشاريع" to R.string.ux001,
+        "موجّهات" to R.string.ux002,
+        "ميزات جاهزة" to R.string.ux003,
+        "نشاطات" to R.string.ux004,
+        "إدارة الموجهات المحفوظة" to R.string.ux005,
+        "محلي أو Gemini بموافقتك" to R.string.ux006,
     )
 }

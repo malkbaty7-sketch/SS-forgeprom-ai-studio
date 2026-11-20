@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- درع سداسي: رمز البناء المحلي -->
+    <path
+        android:pathData="M12,2 L21,7 V17 L12,22 L3,17 V7 Z"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- شرارة التوليد في المركز -->
+    <path
+        android:pathData="M12,7.6 l1.25,3.15 L16.4,12 l-3.15,1.25 L12,16.4 l-1.25,-3.15 L7.6,12 l3.15,-1.25 Z"
+        android:fillColor="#FF000000" />
+</vector>

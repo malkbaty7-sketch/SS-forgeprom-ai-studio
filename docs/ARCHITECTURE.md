@@ -66,3 +66,9 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 - النصوص العربية هي المفتاح في `UiCatalog` وتُحلّ إلى مورد في `values/strings_ui.xml`، والإنجليزية في `values-en`.
 - `ui.i18n.Text` يستبدل `material3.Text` في شاشات الواجهة ويترجم عند العرض؛ النصوص الديناميكية تمر كما هي.
 - اللغة تُحفظ في `LanguageStore` وتُفرض في `MainActivity.attachBaseContext`، والاتجاه يُحسب من إعداد اللغة.
+
+## نظام التصميم
+
+- `ui/theme/`: `Color.kt` (لوحة موسّعة + ألوان حالة)، `Type.kt` (مقياس عربي)، `Shape.kt` (زوايا موحّدة)، `Theme.kt`.
+- `ui/components/Components.kt`: `SectionCard`, `StatusChip`, `StatCard`, `QuickActionCard` (عادي/مضغوط/بارز), `ActivityRow`, `EmptyState`, `ErrorState`, `SkeletonCard`.
+- `ic_brand.xml` شعار متجهي في الشريط العلوي وشريط التنقّل يستخدم أيقونات Material ممتلئة/محدّدة.
