@@ -22,10 +22,11 @@ data class GenerationRequest(
     val promptLanguage: PromptLanguage = PromptLanguage.AR,
     val isImageInspired: Boolean = false,
     val cinematicEdit: Boolean = false,
-    val cinematicScene: Boolean = false
+    val cinematicScene: Boolean = false,
+    val sceneFormat: com.forgeprom.studio.domain.SceneFormat = com.forgeprom.studio.domain.SceneFormat.SCREENPLAY
 ) {
     val cinematicSystem: String? get() = when {
-        cinematicScene -> com.forgeprom.studio.domain.SceneDraft.SYSTEM
+        cinematicScene -> com.forgeprom.studio.domain.SceneDraft.system(sceneFormat)
         cinematicEdit -> com.forgeprom.studio.domain.CinematicEdit.SYSTEM
         else -> null
     }
