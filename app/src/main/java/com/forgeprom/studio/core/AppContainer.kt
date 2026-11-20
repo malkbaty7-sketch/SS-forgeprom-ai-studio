@@ -9,12 +9,12 @@ import com.forgeprom.studio.core.ai.OpenAiCompatEngine
 import com.forgeprom.studio.core.backup.BackupRepository
 import com.forgeprom.studio.core.data.ForgepromDatabase
 import com.forgeprom.studio.core.editor.DraftStore
+import com.forgeprom.studio.core.jobs.PendingSceneStore
 import com.forgeprom.studio.core.security.ApiKeyStore
 import com.forgeprom.studio.core.settings.SettingsStore
 import com.forgeprom.studio.domain.AnalysisDraft
 import com.forgeprom.studio.domain.CritiqueData
 import com.forgeprom.studio.domain.QualityReportData
-import androidx.room.Room
 
 /** جلسة التوليد الحالية بين الشاشات (analysis → result) */
 class SessionHolder {
@@ -39,14 +39,13 @@ class SessionHolder {
  * R4 — الحاوية المركزية: حقن يدوي لكل الطبقات.
  */
 class AppContainer(context: Context) {
-    val db: ForgepromDatabase = Room.databaseBuilder(
-        context, ForgepromDatabase::class.java, "forgeprom.db"
-    ).build()
+    val db: ForgepromDatabase = ForgepromDatabase.build(context)
 
     val settings: SettingsStore = SettingsStore(context)
     val apiKeys: ApiKeyStore = ApiKeyStore(context)
     val drafts: DraftStore = DraftStore(context)
     val backups: BackupRepository = BackupRepository(db)
+    val pendingScenes: PendingSceneStore = PendingSceneStore(context)
     val neuralEngine = LocalNeuralEngine(context)
     val engines: AiEngineManager = AiEngineManager(
         settingsStore = settings,
@@ -54,7 +53,7 @@ class AppContainer(context: Context) {
         localEngine = LocalRulesEngine(),
         neuralEngine = neuralEngine,
         geminiEngine = GeminiEngine(apiKeys),
-        openAiEngine = OpenAiCompatEngine(apiKeys)
+        openAiEngine = OpenAiCompatEngine(apiKeys, pendingScenes)
     )
     val session: SessionHolder = SessionHolder()
 

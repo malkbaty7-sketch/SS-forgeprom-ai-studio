@@ -28,6 +28,7 @@ import com.forgeprom.studio.domain.SceneFormat
 import com.forgeprom.studio.domain.SceneDirection
 import com.forgeprom.studio.domain.SceneTone
 import com.forgeprom.studio.domain.SceneStyle
+import com.forgeprom.studio.domain.TokenEstimator
 import com.forgeprom.studio.domain.SceneLighting
 import org.json.JSONArray
 import org.json.JSONObject
@@ -322,6 +323,13 @@ internal fun SceneDraftDialog(
                         }
                     }
                     Text("مع النموذج المحلي يبقى التوليد على الجهاز. إذا اخترت مزوّدًا سحابيًا، يُرسل وصف المشهد والملاحظات المرفقة فقط؛ لا يُرسل نص المحرّر.")
+                    val estimate = TokenEstimator.estimateRequest(listOf(brief, outgoingNotes), 900)
+                    Text(
+                        "تقدير الطلب: ~" + estimate.inputTokens + " رمز إدخال + حتى " +
+                            estimate.maxOutputTokens + " إخراج.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Row {
                         Checkbox(autoSave, { checked ->
                             autoSave = checked
@@ -381,7 +389,7 @@ internal fun SceneDraftDialog(
                     }
                     Row {
                         Checkbox(queue, { queue = it }, enabled = !busy)
-                        Text("استخدام طابور Forgeprom عبر مزوّد متوافق مهيّأ للبوابة. قد يحتفظ الخادم بالمهمة بعد إغلاق النافذة.", Modifier.padding(top = 12.dp))
+                        Text("استخدام طابور Forgeprom عبر مزوّد متوافق مهيّأ للبوابة. تتابع المهمة في الخلفية بعد إغلاق التطبيق، وتُحفظ النتيجة محلياً عند اكتمالها.", Modifier.padding(top = 12.dp))
                     }
                     TextButton(enabled = !busy, onClick = { showIndex = !showIndex }) { Text("فهرس القصة على البوابة") }
                     if (showIndex) {
@@ -482,7 +490,8 @@ internal fun SceneDraftDialog(
             else Button(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
-                val request = SceneDraft.request(brief, outgoingNotes, direction, format).copy(useGatewayQueue = queue)
+                val request = SceneDraft.request(brief, outgoingNotes, direction, format)
+                            .copy(useGatewayQueue = queue, promptId = promptId)
                 scope.launch {
                     try {
                         val settings = container.settings.settings.first()

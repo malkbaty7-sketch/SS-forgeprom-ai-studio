@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * قاعدة البيانات المحلية — Room، الإصدار 1.
- * الترحيل الآمن بين الإصدارات مطلوب قبل أي تغيير في المخطط (R2/R13).
+ * قاعدة البيانات المحلية — Room، الإصدار 2.
+ * v2 يضيف سجل إصدارات الموجّهات (لقطات نصية عند الحفظ).
  */
 @Database(
     entities = [
@@ -16,9 +18,10 @@ import androidx.room.RoomDatabase
         AnalysisEntity::class,
         ActivityEntity::class,
         EditorFileEntity::class,
-        ImageAnalysisEntity::class
+        ImageAnalysisEntity::class,
+        PromptVersionEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class ForgepromDatabase : RoomDatabase() {
@@ -28,10 +31,26 @@ abstract class ForgepromDatabase : RoomDatabase() {
     abstract fun activityDao(): ActivityDao
     abstract fun editorFileDao(): EditorFileDao
     abstract fun imageAnalysisDao(): ImageAnalysisDao
+    abstract fun promptVersionDao(): PromptVersionDao
 
     companion object {
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `prompt_versions` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`promptId` INTEGER NOT NULL, " +
+                        "`title` TEXT NOT NULL, " +
+                        "`content` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun build(context: Context): ForgepromDatabase =
             Room.databaseBuilder(context, ForgepromDatabase::class.java, "forgeprom.db")
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
     }

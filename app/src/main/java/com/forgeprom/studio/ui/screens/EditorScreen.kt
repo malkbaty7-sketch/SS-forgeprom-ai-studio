@@ -18,6 +18,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.forgeprom.studio.domain.CinematicEdit
+import com.forgeprom.studio.domain.TokenEstimator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +26,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -34,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +49,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
+import com.forgeprom.studio.core.backup.PromptFile
+import com.forgeprom.studio.core.backup.PromptFileData
+import com.forgeprom.studio.core.data.PromptVersionEntity
 import com.forgeprom.studio.core.util.Exporter
 import kotlinx.coroutines.launch
 
@@ -104,6 +110,16 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     var autosavedAt by remember(promptId) { mutableStateOf<Long?>(null) }
     var showExitConfirm by remember(promptId) { mutableStateOf(false) }
     var savedSuccessfully by remember(promptId) { mutableStateOf(false) }
+    var showVersions by remember(promptId) { mutableStateOf(false) }
+    var pendingScene by remember(promptId) { mutableStateOf(container.pendingScenes.resultFor(promptId)) }
+    var sceneJobs by remember(promptId) { mutableStateOf(container.pendingScenes.activeJobs(promptId)) }
+    fun refreshSceneJobs() {
+        pendingScene = container.pendingScenes.resultFor(promptId)
+        sceneJobs = container.pendingScenes.activeJobs(promptId)
+    }
+    val versionDao = container.db.promptVersionDao()
+    val versions by remember(promptId) { versionDao.recent(promptId) }
+        .collectAsState(initial = emptyList<PromptVersionEntity>())
 
     // حفظ تلقائي بعد توقف الكتابة ١٫٥ ثانية، ولا يبدأ قبل حسم المسودة القديمة.
     LaunchedEffect(content, title, pendingDraft) {
@@ -160,6 +176,55 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         }
     }
 
+    if (showVersions) {
+        AlertDialog(
+            onDismissRequest = { showVersions = false },
+            title = { Text("سجل إصدارات الموجّه") },
+            text = {
+                Column(
+                    Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "أحدث 20 حفظاً. الاستعادة تضع النص في المحرر فقط؛ لا يتغيّر الموجّه المحفوظ حتى تضغط حفظ.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    versions.forEachIndexed { index, version ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    "نسخة " + (versions.size - index) + " · " + formatDateTime(version.createdAt),
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Text(
+                                    version.content.trim().split(Regex("\\s+")).count { it.isNotBlank() }
+                                        .toString() + " كلمة · " + version.content.length + " حرفاً",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    version.content.replace('\n', ' ').take(140),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2
+                                )
+                                TextButton(onClick = {
+                                    title = version.title
+                                    field = TextFieldValue(version.content)
+                                    undo = null
+                                    showVersions = false
+                                }) { Text("استعادة إلى المحرر") }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVersions = false }) { Text("إغلاق") }
+            }
+        )
+    }
+
     if (showExitConfirm) {
         ExitWithoutSaveDialog(
             onStay = { showExitConfirm = false },
@@ -171,6 +236,45 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        pendingScene?.let { ready ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("مشهد جاهز من مهمة سابقة", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        ready.content.replace('\n', ' ').take(180),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                    ActionGroup {
+                        Button(onClick = {
+                            undo = field
+                            val updated = if (field.text.isBlank()) ready.content else field.text + "\n\n" + ready.content
+                            field = TextFieldValue(updated, TextRange(updated.length))
+                            container.pendingScenes.clearResult(promptId)
+                            refreshSceneJobs()
+                        }) { Text("إدراج في المحرر") }
+                        OutlinedButton(onClick = {
+                            container.pendingScenes.clearResult(promptId)
+                            refreshSceneJobs()
+                        }) { Text("تجاهل") }
+                    }
+                }
+            }
+        }
+        if (pendingScene == null && sceneJobs.isNotEmpty()) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("مهمة توليد مشهد قيد التنفيذ في الخلفية", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "ستُحفظ النتيجة محلياً عند اكتمالها. يمكنك متابعة التحرير أو إغلاق التطبيق.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(onClick = { refreshSceneJobs() }) { Text("تحديث الحالة") }
+                }
+            }
+        }
         pendingDraft?.let { draft ->
             Card(Modifier.fillMaxWidth()) {
                 Column(
@@ -252,6 +356,21 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                 scope.launch {
                     try {
                         container.db.promptDao().update(updated)
+                        // لقطة نصية لكل حفظ ناجح؛ فشلها لا يُفشل الحفظ نفسه.
+                        runCatching {
+                            val latest = versionDao.latest(promptId)
+                            if (latest == null || latest.content != updated.content || latest.title != updated.title) {
+                                versionDao.insert(
+                                    PromptVersionEntity(
+                                        promptId = promptId,
+                                        title = updated.title,
+                                        content = updated.content,
+                                        createdAt = updated.updatedAt
+                                    )
+                                )
+                                versionDao.trim(promptId, 20)
+                            }
+                        }
                         savedSuccessfully = true
                         container.drafts.clear(promptId)
                         container.logActivity("editor", "تعديل موجه: " + updated.title)
@@ -270,11 +389,33 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                 if (Exporter.copyToClipboard(context, content))
                     Toast.makeText(context, "تم النسخ إلى الحافظة", Toast.LENGTH_SHORT).show()
             }) { Text("نسخ") }
+            if (versions.isNotEmpty()) {
+                OutlinedButton(onClick = { showVersions = true }) {
+                    Text("سجل الإصدارات (" + versions.size + ")")
+                }
+            }
             OutlinedButton(onClick = {
                 val res = Exporter.export(context, title, content, "md")
                 res.onSuccess { uri -> Exporter.share(context, uri, "text/markdown", "مشاركة الموجه") }
                     .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
             }) { Text("تصدير MD") }
+            OutlinedButton(onClick = {
+                val payload = PromptFile.encode(
+                    PromptFileData(
+                        title = title.trim().ifBlank { "موجّه Forgeprom" },
+                        content = content,
+                        language = prompt.language,
+                        goal = prompt.goal,
+                        tech = prompt.tech,
+                        exportedAt = java.time.OffsetDateTime.now().toString()
+                    )
+                )
+                Exporter.export(context, title, payload, "forgeprom")
+                    .onSuccess { uri ->
+                        Exporter.share(context, uri, "application/json", "مشاركة ملف الموجّه")
+                    }
+                    .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
+            }) { Text("تصدير .forgeprom") }
         }
     }
 }
@@ -299,6 +440,11 @@ private fun formatClock(millis: Long): String =
     java.time.Instant.ofEpochMilli(millis)
         .atZone(java.time.ZoneId.systemDefault())
         .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+
+private fun formatDateTime(millis: Long): String =
+    java.time.Instant.ofEpochMilli(millis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))
 
 @Composable
 private fun SmartEditDialog(
@@ -326,6 +472,20 @@ private fun SmartEditDialog(
                 } else {
                     Text("يُرسل التحديد وتوجيهك إلى المزوّد السحابي المختار. لا يُرسل النص المحيط إلا إذا اخترت إرفاقه.")
                     Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
+                    val estimate = TokenEstimator.estimateRequest(
+                        listOf(
+                            edit.selection,
+                            direction,
+                            if (includeContext) edit.contextBefore + edit.contextAfter else ""
+                        ),
+                        800
+                    )
+                    Text(
+                        "تقدير الطلب: ~" + estimate.inputTokens + " رمز إدخال + حتى " +
+                            estimate.maxOutputTokens + " إخراج.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Text("إجراءات سريعة", modifier = Modifier.semantics { heading() })
                     CinematicAction.entries.forEach { action ->
                         FilterChip(

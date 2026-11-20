@@ -126,3 +126,22 @@ interface ImageAnalysisDao {
     @Query("SELECT * FROM image_analyses ORDER BY projectId, createdAt DESC")
     suspend fun allOnce(): List<ImageAnalysisEntity>
 }
+
+@Dao
+interface PromptVersionDao {
+    @Query("SELECT * FROM prompt_versions WHERE promptId = :promptId ORDER BY createdAt DESC, id DESC LIMIT 20")
+    fun recent(promptId: Long): Flow<List<PromptVersionEntity>>
+
+    @Query("SELECT * FROM prompt_versions WHERE promptId = :promptId ORDER BY createdAt DESC, id DESC LIMIT 1")
+    suspend fun latest(promptId: Long): PromptVersionEntity?
+
+    @Insert
+    suspend fun insert(version: PromptVersionEntity): Long
+
+    /** يُبقي أحدث N نسخة فقط لكل موجّه. */
+    @Query("DELETE FROM prompt_versions WHERE promptId = :promptId AND id NOT IN (SELECT id FROM prompt_versions WHERE promptId = :promptId ORDER BY createdAt DESC, id DESC LIMIT :keep)")
+    suspend fun trim(promptId: Long, keep: Int)
+
+    @Query("DELETE FROM prompt_versions WHERE promptId = :promptId")
+    suspend fun clear(promptId: Long)
+}

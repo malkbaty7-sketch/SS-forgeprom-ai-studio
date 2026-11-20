@@ -1,5 +1,6 @@
 package com.forgeprom.studio.core.ai
 
+import com.forgeprom.studio.core.jobs.PendingSceneStore
 import com.forgeprom.studio.core.security.ApiKeyStore
 import com.forgeprom.studio.core.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
@@ -22,7 +23,10 @@ internal class UsageHttpException(val status: Int) : java.io.IOException()
  * R5 — محرك متوافق مع OpenAI (متعدد المزودين: OpenAI، Groq، Together، إلخ)
  * عبر baseUrl وmodel قابلين للتهيئة. يستخدم فقط بعد بوابة الموافقة.
  */
-class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
+class OpenAiCompatEngine(
+    private val apiKeyStore: ApiKeyStore,
+    private val pendingScenes: PendingSceneStore? = null
+) : AiEngine {
     override val id = "cloud.openai_compat"
     override val label = "متوافق OpenAI (سحابي اختياري)"
     override val isLocal = false
@@ -76,7 +80,7 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
                 val body = JSONObject()
                     .put("model", apiKeyStore.openAiModel())
                     .put("messages", messages)
-                if (request.useGatewayQueue) return@runCatching queuedResult(key, body)
+                if (request.useGatewayQueue) return@runCatching queuedResult(key, body, request)
                 val url = apiKeyStore.openAiBaseUrl().trimEnd('/') + "/chat/completions"
                 val httpRequest = Request.Builder()
                     .url(url)
@@ -95,7 +99,7 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
             }
         }
 
-    private suspend fun queuedResult(key: String, payload: JSONObject): String {
+    private suspend fun queuedResult(key: String, payload: JSONObject, request: GenerationRequest): String {
         val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
         require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
             base.query == null && base.fragment == null) { "يلزم عنوان HTTPS للبوابة" }
@@ -107,6 +111,12 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
             JSONObject(response.body?.string().orEmpty()).getString("id")
         }
         require(id.matches(Regex("[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")))
+        // تُسجَّل المهمة فوراً كي يستأنفها عامل الخلفية إن أُغلق التطبيق.
+        pendingScenes?.enqueue(
+            jobId = id,
+            promptId = request.promptId,
+            title = request.instruction.lineSequence().firstOrNull()?.take(80).orEmpty().ifBlank { "مشهد مولّد" }
+        )
         val status = Request.Builder().url(jobs.newBuilder().addPathSegment(id).build())
             .header("Authorization", "Bearer $key").build()
         val deadline = SystemClock.elapsedRealtime() + 120_000
@@ -117,10 +127,16 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
                 JSONObject(response.body?.string().orEmpty())
             }
             when (data.getString("status")) {
-                "done" -> return data.getJSONObject("result").getJSONArray("choices")
-                    .getJSONObject(0).getJSONObject("message").getString("content")
+                "done" -> {
+                    pendingScenes?.clearJob(id)
+                    return data.getJSONObject("result").getJSONArray("choices")
+                        .getJSONObject(0).getJSONObject("message").getString("content")
+                }
                 "queued", "running" -> Unit
-                else -> error("لم تنجح مهمة التوليد")
+                else -> {
+                    pendingScenes?.clearJob(id)
+                    error("لم تنجح مهمة التوليد")
+                }
             }
         }
         error("انتهت مهلة متابعة المهمة؛ قد يستمر التنفيذ على الخادم")

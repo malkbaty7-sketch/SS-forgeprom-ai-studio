@@ -26,7 +26,9 @@ data class GenerationRequest(
     val storyAnalysis: Boolean = false,
     val storyRetrieval: Boolean = false,
     val sceneFormat: com.forgeprom.studio.domain.SceneFormat = com.forgeprom.studio.domain.SceneFormat.SCREENPLAY,
-    val useGatewayQueue: Boolean = false
+    val useGatewayQueue: Boolean = false,
+    /** معرّف الموجّه لحفظ مهمة الطابور ومتابعتها في الخلفية؛ صفر يعني بلا استئناف. */
+    val promptId: Long = 0
 ) {
     val cinematicSystem: String? get() = when {
         storyRetrieval -> com.forgeprom.studio.domain.SemanticContext.SYSTEM

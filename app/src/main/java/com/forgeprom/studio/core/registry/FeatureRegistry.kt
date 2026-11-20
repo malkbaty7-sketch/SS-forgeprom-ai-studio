@@ -46,7 +46,11 @@ object FeatureRegistry {
         Feature("UI.TEMPLATES", "قوالب بداية جاهزة للفكرة والهدف والتقنية", "R15", true, "مكتمل — قوالب محلية قابلة للتعديل بعد الاختيار"),
         Feature("GATEWAY.USAGE", "عرض استهلاك البوابة لآخر 30 يوماً", "R15", true, "مكتمل — قراءة فقط بعد الموافقة وتهيئة الحساب"),
         Feature("SEC.HTTPS", "فرض HTTPS وقيود النسخ الاحتياطي", "R15", true, "مكتمل — سياسة عنوان + Network Security Config + استثناءات نسخ"),
-        Feature("OPS.GATEWAY", "جاهزية البوابة وسجلاتها وإغلاقها اللطيف", "R15", true, "مكتمل — /readyz وX-Request-Id وسجلات JSON وحاوية Docker")
+        Feature("OPS.GATEWAY", "جاهزية البوابة وسجلاتها وإغلاقها اللطيف", "R15", true, "مكتمل — /readyz وX-Request-Id وسجلات JSON وحاوية Docker"),
+        Feature("PROMPT.VERSIONS", "سجل إصدارات الموجّه واستعادة نسخة", "R16", true, "مكتمل — أحدث 20 لقطة لكل موجّه مع استعادة إلى المحرر"),
+        Feature("AI.ESTIMATE", "تقدير رموز الطلب قبل الإرسال", "R16", true, "مكتمل — تقدير محلي تقريبي بلا شبكة"),
+        Feature("SHARE.PROMPTFILE", "مشاركة واستيراد ملف .forgeprom", "R16", true, "مكتمل — ترميز مستقل وتحقق من الصيغة والإصدار"),
+        Feature("JOBS.RESUME", "استئناف مهام المشهد بعد إغلاق التطبيق", "R16", true, "مكتمل — WorkManager يستعلم فقط ولا يعيد الإرسال؛ الإشعار اختياري")
     )
 
     fun byId(id: String): Feature? = features.firstOrNull { it.id == id }
