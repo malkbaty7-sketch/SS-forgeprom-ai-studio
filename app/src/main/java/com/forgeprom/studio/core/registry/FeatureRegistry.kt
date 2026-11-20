@@ -38,7 +38,7 @@ object FeatureRegistry {
         Feature("QUALITY.TESTS", "اختبارات وحدة لطبقة المجال", "R12", true, "مكتمل — QualityChecker/IdeaAnalyzer"),
         Feature("CI.BUILD", "بناء APK تلقائي عبر GitHub Actions", "R12", true, "مكتمل — workflow في المستودع"),
         Feature("NEURAL.ONDEVICE", "نموذج عصبي محلي على الجهاز", "R13", true, "توليد نصي اختياري بعد استيراد حزمة MediaPipe متوافقة على ARM64"),
-        Feature("UI.RUNTIME", "تشغيل الكود داخل المحرر", "R3", false, "مؤجل لمرحلة لاحقة بدواعٍ أمنية"),
+        Feature("UI.RUNTIME", "تشغيل سكربت حسابي داخل المحرر", "R3", true, "لغة حسابية محدودة تعمل محليًا دون ملفات أو شبكة"),
         Feature("SEARCH.WEB", "البحث في الإنترنت", "R9", true, "اختياري عبر بوابة مهيّأة وموافقة صريحة")
     )
 

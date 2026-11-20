@@ -65,6 +65,9 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     val content = field.text
     var edit by remember(promptId) { mutableStateOf<CinematicEdit?>(null) }
 
+    var showLocalScript by remember(promptId) { mutableStateOf(false) }
+    if (showLocalScript) LocalScriptDialog { showLocalScript = false }
+
     var showWebSearch by remember(promptId) { mutableStateOf(false) }
     if (showWebSearch) WebSearchDialog(container) { showWebSearch = false }
 
@@ -108,6 +111,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         )
         OutlinedButton(onClick = { showScene = true }) { Text("توليد مشهد وذاكرة القصة") }
         OutlinedButton(onClick = { showWebSearch = true }) { Text("البحث على الإنترنت") }
+        OutlinedButton(onClick = { showLocalScript = true }) { Text("تشغيل سكربت حسابي محلي") }
         undo?.let { previous ->
             OutlinedButton(onClick = { field = previous; undo = null }) { Text("تراجع عن آخر تعديل سينمائي") }
         }
