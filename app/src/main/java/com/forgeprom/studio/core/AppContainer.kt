@@ -6,7 +6,9 @@ import com.forgeprom.studio.core.ai.GeminiEngine
 import com.forgeprom.studio.core.ai.LocalNeuralEngine
 import com.forgeprom.studio.core.ai.LocalRulesEngine
 import com.forgeprom.studio.core.ai.OpenAiCompatEngine
+import com.forgeprom.studio.core.backup.BackupRepository
 import com.forgeprom.studio.core.data.ForgepromDatabase
+import com.forgeprom.studio.core.editor.DraftStore
 import com.forgeprom.studio.core.security.ApiKeyStore
 import com.forgeprom.studio.core.settings.SettingsStore
 import com.forgeprom.studio.domain.AnalysisDraft
@@ -43,6 +45,8 @@ class AppContainer(context: Context) {
 
     val settings: SettingsStore = SettingsStore(context)
     val apiKeys: ApiKeyStore = ApiKeyStore(context)
+    val drafts: DraftStore = DraftStore(context)
+    val backups: BackupRepository = BackupRepository(db)
     val neuralEngine = LocalNeuralEngine(context)
     val engines: AiEngineManager = AiEngineManager(
         settingsStore = settings,

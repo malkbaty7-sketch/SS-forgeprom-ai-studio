@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import androidx.activity.compose.BackHandler
+import com.forgeprom.studio.core.editor.EditorDraft
 import com.forgeprom.studio.ui.components.ScreenNotice
 import com.forgeprom.studio.ui.components.ActionGroup
 import android.widget.Toast
@@ -17,6 +19,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.forgeprom.studio.domain.CinematicEdit
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,11 +27,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,6 +89,31 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     val content = field.text
     var edit by remember(promptId) { mutableStateOf<CinematicEdit?>(null) }
 
+    // نسخة احتياطية محلية للتعديلات غير المحفوظة — تُستعاد بعد إغلاق التطبيق.
+    var pendingDraft by remember(promptId) {
+        val stored = container.drafts.load(promptId)
+        if (stored != null && stored.content == prompt.content && stored.title.trim() == prompt.title) {
+            container.drafts.clear(promptId)
+            mutableStateOf<EditorDraft?>(null)
+        } else {
+            mutableStateOf(stored)
+        }
+    }
+    var autosavedAt by remember(promptId) { mutableStateOf<Long?>(null) }
+    var showExitConfirm by remember(promptId) { mutableStateOf(false) }
+
+    // حفظ تلقائي بعد توقف الكتابة ١٫٥ ثانية، ولا يبدأ قبل حسم المسودة القديمة.
+    LaunchedEffect(content, title, pendingDraft) {
+        if (pendingDraft != null) return@LaunchedEffect
+        if (content == prompt.content && title.trim() == prompt.title) return@LaunchedEffect
+        delay(1500)
+        container.drafts.save(promptId, title.trim(), content)
+        autosavedAt = System.currentTimeMillis()
+    }
+
+    val hasUnsavedChanges = content != prompt.content || title.trim() != prompt.title
+    BackHandler(enabled = hasUnsavedChanges) { showExitConfirm = true }
+
     var showLocalScript by remember(promptId) { mutableStateOf(false) }
     if (showLocalScript) LocalScriptDialog { showLocalScript = false }
 
@@ -110,10 +140,47 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         }
     }
 
+    if (showExitConfirm) {
+        ExitWithoutSaveDialog(
+            onStay = { showExitConfirm = false },
+            onLeave = { showExitConfirm = false; onDone() }
+        )
+    }
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        pendingDraft?.let { draft ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("مسودة محلية غير محفوظة", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "وُجدت مسودة من الساعة " + formatClock(draft.savedAt) +
+                            " تختلف عن النسخة المحفوظة من هذا الموجّه.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    ActionGroup {
+                        Button(onClick = {
+                            if (draft.title.isNotBlank()) title = draft.title
+                            field = TextFieldValue(draft.content)
+                            container.drafts.clear(promptId)
+                            autosavedAt = draft.savedAt
+                            pendingDraft = null
+                        }) { Text("استعادة المسودة") }
+                        OutlinedButton(onClick = {
+                            container.drafts.clear(promptId)
+                            pendingDraft = null
+                            autosavedAt = null
+                        }) { Text("تجاهل المسودة") }
+                    }
+                }
+            }
+        }
         OutlinedTextField(
             value = title,
             enabled = !saving,
@@ -148,6 +215,13 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        autosavedAt?.let { savedAt ->
+            Text(
+                "مسودة محلية محفوظة تلقائياً · الساعة " + formatClock(savedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         if (saving) ScreenNotice("جارٍ حفظ الموجّه…", loading = true)
         if (saveError) ScreenNotice("تعذّر حفظ الموجّه. لم تُفقد تعديلاتك؛ اضغط حفظ لإعادة المحاولة.")
         ActionGroup {
@@ -158,6 +232,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                 scope.launch {
                     try {
                         container.db.promptDao().update(updated)
+                        container.drafts.clear(promptId)
                         container.logActivity("editor", "تعديل موجه: " + updated.title)
                         Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
                         onDone()
@@ -182,6 +257,27 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         }
     }
 }
+
+@Composable
+private fun ExitWithoutSaveDialog(onStay: () -> Unit, onLeave: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onStay,
+        title = { Text("خروج بدون حفظ؟") },
+        text = {
+            Text(
+                "تعديلاتك محفوظة كمسودة محلية على هذا الجهاز ويمكن استعادتها عند فتح الموجّه مجدداً، " +
+                    "لكن النسخة المحفوظة في المشروع لم تتغيّر بعد."
+            )
+        },
+        confirmButton = { TextButton(onClick = onLeave) { Text("خروج") } },
+        dismissButton = { TextButton(onClick = onStay) { Text("متابعة التحرير") } }
+    )
+}
+
+private fun formatClock(millis: Long): String =
+    java.time.Instant.ofEpochMilli(millis)
+        .atZone(java.time.ZoneId.systemDefault())
+        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
 
 @Composable
 private fun SmartEditDialog(

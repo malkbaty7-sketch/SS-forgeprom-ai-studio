@@ -13,6 +13,7 @@ object Destinations {
     const val ANALYSIS = "analysis"
     const val RESULT = "result"
     const val IMAGE = "image"
+    const val BACKUP = "backup"
 
     const val PROJECT_DETAIL = "project/{id}"
     fun projectDetail(id: Long) = "project/" + id

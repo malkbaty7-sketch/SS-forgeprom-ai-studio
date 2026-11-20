@@ -47,7 +47,7 @@ import kotlinx.coroutines.launch
  * R11 — الإعدادات: الثيم، لغة الموجه، بوابة الموافقة، المفاتيح المشفرة، تشخيص الميزات.
  */
 @Composable
-fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
+fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () -> Unit) {
     val settings by container.settings.settings.collectAsState(initial = AppSettings())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -185,6 +185,9 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
             }
         }
 
+        OutlinedButton(onClick = onBackup, modifier = Modifier.fillMaxWidth()) {
+            Text("النسخ الاحتياطي والاستعادة")
+        }
         OutlinedButton(onClick = onAbout, modifier = Modifier.fillMaxWidth()) { Text("حول التطبيق") }
         PhaseNote("التشفير عبر EncryptedSharedPreferences من AndroidX Security. يمكن إدارة النموذج العصبي المحلي الاختياري من شاشة المحركات.")
     }
