@@ -84,3 +84,13 @@ data class ImageAnalysisEntity(
     val confidence: Float = 0f,
     val createdAt: Long = System.currentTimeMillis()
 )
+
+/** R16 — لقطة من نص الموجّه عند كل حفظ، لاستعادة نسخة سابقة. */
+@Entity(tableName = "prompt_versions")
+data class PromptVersionEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val promptId: Long,
+    val title: String,
+    val content: String,
+    val createdAt: Long = System.currentTimeMillis()
+)

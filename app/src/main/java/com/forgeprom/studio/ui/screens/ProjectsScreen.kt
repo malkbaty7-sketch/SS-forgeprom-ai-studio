@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import com.forgeprom.studio.ui.components.ScreenHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,6 +27,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,19 +39,25 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.R
 import com.forgeprom.studio.ui.components.ActionGroup
 import com.forgeprom.studio.core.AppContainer
+import com.forgeprom.studio.core.backup.PromptFile
 import com.forgeprom.studio.core.data.ProjectEntity
+import com.forgeprom.studio.core.data.PromptEntity
+import com.forgeprom.studio.core.util.UriText
 import com.forgeprom.studio.domain.ProjectFilter
 import com.forgeprom.studio.domain.ProjectFilterMode
 import com.forgeprom.studio.domain.ProjectFilters
 import com.forgeprom.studio.domain.ProjectSearchFields
 import com.forgeprom.studio.domain.ProjectTags
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.combine
 import com.forgeprom.studio.ui.components.ScreenNotice
@@ -74,6 +83,10 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
     var query by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf(ProjectFilterMode.ALL) }
     var tag by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+    var importing by remember { mutableStateOf(false) }
+    var importNotice by remember { mutableStateOf<String?>(null) }
+    var importError by remember { mutableStateOf<String?>(null) }
 
     fun mutate(success: String, inForm: Boolean = false, operation: suspend () -> Unit) {
         if (busy) return
@@ -108,6 +121,58 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
         tag = null
     }
 
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true
+        importNotice = null
+        importError = null
+        scope.launch {
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    UriText.readLimited(context, uri, PromptFile.MAX_FILE_CHARS)
+                }
+                if (text == null) {
+                    importError = "تعذّرت قراءة الملف أو أنه يتجاوز الحد الأقصى."
+                } else {
+                    val data = PromptFile.decode(text)
+                    if (data.content.isBlank()) {
+                        importError = "ملف الموجّه لا يحتوي نصاً قابلاً للاستيراد."
+                    } else {
+                        val cleanTitle = data.title.trim().take(120).ifBlank { "موجّه مستورد" }
+                        val projectId = dao.insert(
+                            ProjectEntity(
+                                name = cleanTitle,
+                                description = data.goal.trim().take(2000),
+                                kind = "prompt",
+                                tags = ProjectTags.normalize(data.tags)
+                            )
+                        )
+                        container.db.promptDao().insert(
+                            PromptEntity(
+                                projectId = projectId,
+                                title = cleanTitle,
+                                content = data.content,
+                                language = data.language.ifBlank { "ar" },
+                                goal = data.goal.trim().take(2000),
+                                tech = data.tech.trim().take(2000)
+                            )
+                        )
+                        container.logActivity("import", "استيراد موجّه: " + cleanTitle)
+                        importNotice = "استُورد الموجّه في مشروع جديد: " + cleanTitle
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: IllegalArgumentException) {
+                importError = "الملف ليس ملف موجّه Forgeprom صالحاً أو أن إصداره غير مدعوم."
+            } catch (_: Exception) {
+                importError = "تعذّر الاستيراد. تحقّق من الملف ثم أعد المحاولة."
+            } finally {
+                importing = false
+            }
+        }
+    }
+
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -138,6 +203,16 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
             label = { Text("بحث") }
         )
 
+        OutlinedButton(
+            enabled = !busy && !importing,
+            onClick = {
+                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+            }
+        ) { Text("استيراد موجّه (.forgeprom)") }
+
+        if (importing) ScreenNotice("جارٍ استيراد الموجّه…", loading = true)
+        importNotice?.let { ScreenNotice(it) }
+        importError?.let { ScreenNotice(it) }
         if (busy && !showForm) ScreenNotice("جارٍ تحديث المشاريع…", loading = true)
         notice?.let { ScreenNotice(it) }
         val current = load

@@ -1,6 +1,5 @@
 package com.forgeprom.studio.ui.screens
 
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.backup.BackupDocument
 import com.forgeprom.studio.core.backup.BackupRules
+import com.forgeprom.studio.core.util.UriText
 import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.ScreenHeading
 import com.forgeprom.studio.ui.components.ScreenNotice
@@ -79,7 +79,7 @@ fun BackupScreen(container: AppContainer) {
                     )
                     return@launch
                 }
-                val written = withContext(Dispatchers.IO) { writeText(context, uri, json) }
+                val written = withContext(Dispatchers.IO) { UriText.write(context, uri, json) }
                 if (written) {
                     message = "تم إنشاء النسخة الاحتياطية. احفظ الملف في مكان آمن."
                 } else {
@@ -105,7 +105,7 @@ fun BackupScreen(container: AppContainer) {
         scope.launch {
             try {
                 val text = withContext(Dispatchers.IO) {
-                    readLimited(context, uri, BackupRules.MAX_FILE_CHARS)
+                    UriText.readLimited(context, uri, BackupRules.MAX_FILE_CHARS)
                 }
                 if (text == null) {
                     fail("تعذّر قراءة الملف، أو أنه يتجاوز الحد الأقصى (٨ ميغابايت).")
@@ -222,24 +222,3 @@ fun BackupScreen(container: AppContainer) {
         )
     }
 }
-
-private fun writeText(context: Context, uri: Uri, text: String): Boolean = runCatching {
-    context.contentResolver.openOutputStream(uri)?.use { output ->
-        output.write(text.toByteArray(Charsets.UTF_8))
-    } != null
-}.getOrDefault(false)
-
-private fun readLimited(context: Context, uri: Uri, maxChars: Int): String? = runCatching {
-    context.contentResolver.openInputStream(uri)?.use { input ->
-        val reader = input.reader(Charsets.UTF_8)
-        val buffer = CharArray(8192)
-        val collected = StringBuilder()
-        while (true) {
-            val read = reader.read(buffer)
-            if (read < 0) break
-            collected.append(buffer, 0, read)
-            if (collected.length > maxChars) return null
-        }
-        collected.toString()
-    }
-}.getOrNull()

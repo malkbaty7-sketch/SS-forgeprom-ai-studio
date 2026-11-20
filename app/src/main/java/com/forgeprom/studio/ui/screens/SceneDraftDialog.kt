@@ -28,6 +28,7 @@ import com.forgeprom.studio.domain.SceneFormat
 import com.forgeprom.studio.domain.SceneDirection
 import com.forgeprom.studio.domain.SceneTone
 import com.forgeprom.studio.domain.SceneStyle
+import com.forgeprom.studio.domain.TokenEstimator
 import com.forgeprom.studio.domain.SceneLighting
 import org.json.JSONArray
 import org.json.JSONObject
@@ -322,6 +323,13 @@ internal fun SceneDraftDialog(
                         }
                     }
                     Text("مع النموذج المحلي يبقى التوليد على الجهاز. إذا اخترت مزوّدًا سحابيًا، يُرسل وصف المشهد والملاحظات المرفقة فقط؛ لا يُرسل نص المحرّر.")
+                    val estimate = TokenEstimator.estimateRequest(listOf(brief, outgoingNotes), 900)
+                    Text(
+                        "تقدير الطلب: ~" + estimate.inputTokens + " رمز إدخال + حتى " +
+                            estimate.maxOutputTokens + " إخراج.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Row {
                         Checkbox(autoSave, { checked ->
                             autoSave = checked

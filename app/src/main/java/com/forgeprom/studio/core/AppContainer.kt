@@ -14,7 +14,6 @@ import com.forgeprom.studio.core.settings.SettingsStore
 import com.forgeprom.studio.domain.AnalysisDraft
 import com.forgeprom.studio.domain.CritiqueData
 import com.forgeprom.studio.domain.QualityReportData
-import androidx.room.Room
 
 /** جلسة التوليد الحالية بين الشاشات (analysis → result) */
 class SessionHolder {
@@ -39,9 +38,7 @@ class SessionHolder {
  * R4 — الحاوية المركزية: حقن يدوي لكل الطبقات.
  */
 class AppContainer(context: Context) {
-    val db: ForgepromDatabase = Room.databaseBuilder(
-        context, ForgepromDatabase::class.java, "forgeprom.db"
-    ).build()
+    val db: ForgepromDatabase = ForgepromDatabase.build(context)
 
     val settings: SettingsStore = SettingsStore(context)
     val apiKeys: ApiKeyStore = ApiKeyStore(context)
