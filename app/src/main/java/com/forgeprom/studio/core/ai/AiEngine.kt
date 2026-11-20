@@ -21,8 +21,15 @@ data class GenerationRequest(
     val projectContext: String = "",
     val promptLanguage: PromptLanguage = PromptLanguage.AR,
     val isImageInspired: Boolean = false,
-    val cinematicEdit: Boolean = false
-)
+    val cinematicEdit: Boolean = false,
+    val cinematicScene: Boolean = false
+) {
+    val cinematicSystem: String? get() = when {
+        cinematicScene -> com.forgeprom.studio.domain.SceneDraft.SYSTEM
+        cinematicEdit -> com.forgeprom.studio.domain.CinematicEdit.SYSTEM
+        else -> null
+    }
+}
 
 data class ImageAnalysisResult(
     val screenType: String,

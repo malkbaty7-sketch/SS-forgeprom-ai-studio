@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.semantics.heading
@@ -60,12 +61,24 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
 
     var title by remember { mutableStateOf(prompt.title) }
     var field by remember(promptId) { mutableStateOf(TextFieldValue(prompt.content)) }
+    var undo by remember(promptId) { mutableStateOf<TextFieldValue?>(null) }
     val content = field.text
     var edit by remember(promptId) { mutableStateOf<CinematicEdit?>(null) }
+
+    var showScene by remember(promptId) { mutableStateOf(false) }
+    if (showScene) {
+        SceneDraftDialog(container, promptId, title, onDismiss = { showScene = false }) { scene ->
+            undo = field
+            val updated = if (field.text.isBlank()) scene else field.text + "\n\n" + scene
+            field = TextFieldValue(updated, TextRange(updated.length))
+            showScene = false
+        }
+    }
 
     edit?.let { snapshot ->
         SmartEditDialog(container, snapshot, onDismiss = { edit = null }) { replacement ->
             snapshot.apply(field.text, replacement)?.let { updated ->
+                undo = TextFieldValue(snapshot.source, TextRange(snapshot.start, snapshot.end))
                 field = TextFieldValue(updated, TextRange(snapshot.start + replacement.length))
             }
             edit = null
@@ -84,12 +97,16 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         )
         OutlinedTextField(
             value = field,
-            onValueChange = { field = it },
+            onValueChange = { if (it.text != field.text) undo = null; field = it },
             label = { Text("نص الموجه") },
             minLines = 6,
             maxLines = 12,
             modifier = Modifier.fillMaxWidth()
         )
+        OutlinedButton(onClick = { showScene = true }) { Text("توليد مشهد وذاكرة القصة") }
+        undo?.let { previous ->
+            OutlinedButton(onClick = { field = previous; undo = null }) { Text("تراجع عن آخر تعديل سينمائي") }
+        }
         val selection = field.selection
         if (!selection.collapsed && content.substring(selection.min, selection.max).isNotBlank()) {
             OutlinedButton(onClick = { edit = CinematicEdit(content, selection.min, selection.max) }) {
@@ -138,6 +155,7 @@ private fun SmartEditDialog(
     var preview by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var includeContext by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (preview == null) "المخرج التفاعلي" else "معاينة التعديل") },
@@ -149,7 +167,7 @@ private fun SmartEditDialog(
                     HorizontalDivider()
                     ComparisonPassage("النص المعدّل", replacement)
                 } else {
-                    Text("يُرسل التحديد وتعليماتك فقط إلى مزوّد التوليد السحابي المختار.")
+                    Text("يُرسل التحديد وتوجيهك إلى المزوّد السحابي المختار. لا يُرسل النص المحيط إلا إذا اخترت إرفاقه.")
                     Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
                     Text("إجراءات سريعة", modifier = Modifier.semantics { heading() })
                     CinematicAction.entries.forEach { action ->
@@ -167,6 +185,20 @@ private fun SmartEditDialog(
                         label = { Text("توجيه التعديل") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (edit.contextBefore.isNotBlank() || edit.contextAfter.isNotBlank()) {
+                        Row {
+                            Checkbox(
+                                checked = includeContext,
+                                onCheckedChange = { includeContext = it; error = null },
+                                enabled = !busy
+                            )
+                            Text("إرفاق سياق المقطع (اختياري)", Modifier.padding(top = 12.dp))
+                        }
+                        if (includeContext) {
+                            if (edit.contextBefore.isNotEmpty()) ComparisonPassage("السياق المرسل قبل التحديد", edit.contextBefore)
+                            if (edit.contextAfter.isNotEmpty()) ComparisonPassage("السياق المرسل بعد التحديد", edit.contextAfter)
+                        }
+                    }
                     if (edit.selection.length > 8_000) Text("حدّد مقطعاً لا يتجاوز ٨٠٠٠ حرف.")
                     if (busy) Text("جارٍ إعداد الاقتراح…")
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -193,7 +225,7 @@ private fun SmartEditDialog(
                                 error = "اختر مزوّداً سحابياً جاهزاً للتوليد العام من شاشة النماذج."
                                 return@launch
                             }
-                            preview = engine.generate(edit.request(direction)).getOrThrow().trim()
+                            preview = engine.generate(edit.request(direction, includeContext)).getOrThrow().trim()
                                 .takeIf { it.isNotBlank() } ?: kotlin.error("Empty rewrite")
                         } catch (e: CancellationException) {
                             throw e
@@ -204,7 +236,7 @@ private fun SmartEditDialog(
                         }
                     }
                 }
-            ) { Text("اقتراح تعديل") }
+            ) { Text(if (error == null) "اقتراح تعديل" else "إعادة المحاولة") }
         },
         dismissButton = {
             if (preview != null) TextButton(onClick = { preview = null }) { Text("تعديل التوجيه") }

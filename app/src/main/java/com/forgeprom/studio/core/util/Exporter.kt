@@ -13,11 +13,15 @@ import java.io.File
 object Exporter {
 
     fun export(context: Context, baseName: String, content: String, ext: String): Result<Uri> {
+        return exportBytes(context, baseName, content.toByteArray(Charsets.UTF_8), ext)
+    }
+
+    fun exportBytes(context: Context, baseName: String, content: ByteArray, ext: String): Result<Uri> {
         return runCatching {
             val dir = File(context.cacheDir, "exports").apply { mkdirs() }
             val safe = baseName.replace(Regex("[\\\\/:*?\"<>|\\s]+"), "-").take(50).ifBlank { "prompt" }
             val file = File(dir, safe + "-" + System.currentTimeMillis() + "." + ext)
-            file.writeText(content, Charsets.UTF_8)
+            file.writeBytes(content)
             FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
         }
     }

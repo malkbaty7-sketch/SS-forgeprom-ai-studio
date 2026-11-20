@@ -30,6 +30,17 @@ class CinematicEditTest {
         }
     }
 
+    @Test fun contextIsBoundedAndOnlySentWhenRequested() {
+        val source = "x".repeat(500) + "مقطع" + "y".repeat(500)
+        val selected = CinematicEdit(source, 500, 504)
+        assertFalse(selected.request("اختصر").instruction.contains("xxxxxxxx"))
+        val request = selected.request("اختصر", includeContext = true)
+        assertTrue(request.instruction.contains("x".repeat(400)))
+        assertTrue(request.instruction.contains("y".repeat(400)))
+        assertFalse(request.instruction.contains("x".repeat(401)))
+        assertFalse(request.instruction.contains("y".repeat(401)))
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsBlankDirection() {
         edit.request(" ")
