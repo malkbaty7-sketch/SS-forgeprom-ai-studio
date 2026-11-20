@@ -38,6 +38,7 @@ import com.forgeprom.studio.core.registry.FeatureRegistry
 import com.forgeprom.studio.core.settings.AppSettings
 import com.forgeprom.studio.core.settings.PromptLanguage
 import com.forgeprom.studio.core.settings.ThemeMode
+import com.forgeprom.studio.domain.EndpointPolicy
 import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.SectionCard
 import com.forgeprom.studio.ui.components.StatusChip
@@ -55,6 +56,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
     var geminiKey by remember { mutableStateOf("") }
     var openAiKey by remember { mutableStateOf("") }
     var baseUrl by remember { mutableStateOf(container.apiKeys.openAiBaseUrl()) }
+    var baseUrlError by remember { mutableStateOf<String?>(null) }
     var billingRevision by remember { mutableStateOf(0) }
     var model by remember { mutableStateOf(container.apiKeys.openAiModel()) }
 
@@ -69,7 +71,10 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
     ) {
         ScreenHeading("الإعدادات")
 
-        key(settings.cloudConsent, billingRevision) { GatewayInvoices(container, settings.cloudConsent) }
+        key(settings.cloudConsent, billingRevision) {
+            GatewayInvoices(container, settings.cloudConsent)
+            GatewayUsage(container, settings.cloudConsent)
+        }
 
         SectionCard("المظهر") {
             ActionGroup {
@@ -136,8 +141,12 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             )
             OutlinedTextField(
                 value = baseUrl,
-                onValueChange = { baseUrl = it },
+                onValueChange = { baseUrl = it; baseUrlError = null },
                 label = { Text("عنوان المزود الأساسي") },
+                isError = baseUrlError != null,
+                supportingText = {
+                    Text(baseUrlError ?: "HTTPS إلزامي. HTTP مسموح فقط للتطوير المحلي.")
+                },
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
@@ -147,6 +156,12 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
                 modifier = Modifier.fillMaxWidth()
             )
             Button(onClick = {
+                val policyError = EndpointPolicy.validateBaseUrl(baseUrl)
+                if (policyError != null) {
+                    baseUrlError = policyError
+                    return@Button
+                }
+                baseUrlError = null
                 if (geminiKey.isNotBlank()) container.apiKeys.setGeminiKey(geminiKey.trim())
                 if (openAiKey.isNotBlank()) container.apiKeys.setOpenAiKey(openAiKey.trim())
                 container.apiKeys.setOpenAiBaseUrl(baseUrl.trim())

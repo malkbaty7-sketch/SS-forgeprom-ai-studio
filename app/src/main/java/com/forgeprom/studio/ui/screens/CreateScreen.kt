@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.domain.IdeaAnalyzer
+import com.forgeprom.studio.domain.PromptTemplates
 import com.forgeprom.studio.ui.components.SectionCard
 import kotlinx.coroutines.launch
 
@@ -60,6 +61,27 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             minLines = 5,
             modifier = Modifier.fillMaxWidth()
         )
+
+        SectionCard("قوالب بداية (اختياري)") {
+            Text(
+                "اختر قالباً لتعبئة الفكرة والهدف والتقنية، ثم عدّل النص بحرية. التحليل يبقى محلياً.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            ActionGroup {
+                PromptTemplates.all.forEach { template ->
+                    FilterChip(
+                        selected = idea == template.idea,
+                        onClick = {
+                            idea = template.idea
+                            goal = template.goal
+                            tech = template.tech
+                        },
+                        label = { Text(template.title) }
+                    )
+                }
+            }
+        }
 
         SectionCard("نوع الطلب") {
             Column {

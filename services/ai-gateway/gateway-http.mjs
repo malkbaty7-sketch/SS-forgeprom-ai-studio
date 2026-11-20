@@ -1,22 +1,55 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { generate } from './provider.mjs';
 import { BillingError } from './billing.mjs';
 import { webQuery } from './web-search.mjs';
 import { meteredGeneration } from './usage.mjs';
 
-export function createGateway({ authenticate, takeQuota, jobs, usage, story, storyModule, billing, webSearch, openAiModel }) {
+const REQUEST_ID = /^[A-Za-z0-9._-]{1,128}$/;
+
+export function createGateway({
+  authenticate, takeQuota, jobs, usage, story, storyModule, billing, webSearch, openAiModel,
+  readiness = [], logger = console, clock = Date.now
+}) {
   let active = 0;
   const metrics = { accepted: 0, upstreamFailures: 0, completed: 0, upstreamLatencyMs: 0 };
+
+  function log(event) {
+    try { logger?.info?.(JSON.stringify(event)); } catch { /* logging must never fail a request */ }
+  }
 
   function send(res, status, payload, headers = {}) {
     res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers });
     res.end(JSON.stringify(payload));
   }
 
-  return createServer(async (req, res) => {
+  const server = createServer(async (req, res) => {
+    const incoming = req.headers['x-request-id'];
+    const requestId = typeof incoming === 'string' && REQUEST_ID.test(incoming) ? incoming : randomUUID();
+    res.setHeader('X-Request-Id', requestId);
+    const started = clock();
+    let accountKey = null;
+    res.on('finish', () => log({
+      level: 'info', event: 'request', requestId, method: req.method,
+      path: String(req.url ?? '').split('?')[0], status: res.statusCode,
+      durationMs: clock() - started, account: accountKey
+    }));
+
     if (req.method === 'GET' && req.url === '/health') return send(res, 200, { ok: true });
+    if (req.method === 'GET' && req.url === '/readyz') {
+      const checks = {};
+      let ready = true;
+      await Promise.all((Array.isArray(readiness) ? readiness : []).map(async probe => {
+        let ok = false;
+        try { ok = (await probe.check()) === true; } catch { ok = false; }
+        checks[probe.name] = ok ? 'ok' : 'failed';
+        if (!ok) ready = false;
+      }));
+      return send(res, ready ? 200 : 503, { ready, checks });
+    }
     const account = authenticate(req.headers.authorization);
     if (!account) return send(res, 401, { error: 'Unauthorized' });
+    accountKey = account.key;
     if (req.method === 'GET' && req.url === '/metrics') {
       return account.admin ? send(res, 200, { ...metrics, active }) : send(res, 403, { error: 'Forbidden' });
     }
@@ -143,6 +176,7 @@ export function createGateway({ authenticate, takeQuota, jobs, usage, story, sto
         send(res, 200, response);
       } catch {
         metrics.upstreamFailures++;
+        log({ level: 'warn', event: 'upstream_failure', requestId });
         send(res, 502, { error: 'Generation provider unavailable' });
       } finally {
         metrics.upstreamLatencyMs += Date.now() - start;
@@ -151,4 +185,9 @@ export function createGateway({ authenticate, takeQuota, jobs, usage, story, sto
       if (!res.headersSent && !res.destroyed) send(res, 400, { error: "Incomplete request" });
     } finally { active--; }
   }).on('clientError', (_error, socket) => socket.destroy());
+
+  // حدود زمنية صريحة: لا نترك اتصالاً بطيئاً يحتجز الخادم إلى ما لا نهاية.
+  server.requestTimeout = 60_000;
+  server.headersTimeout = 10_000;
+  return server;
 }

@@ -42,7 +42,11 @@ object FeatureRegistry {
         Feature("SEARCH.WEB", "البحث في الإنترنت", "R9", true, "اختياري عبر بوابة مهيّأة وموافقة صريحة"),
         Feature("EDITOR.AUTOSAVE", "حفظ تلقائي واسترداد مسودات المحرر", "R14", true, "مكتمل — مسودة محلية لكل موجّه مع استعادة صريحة"),
         Feature("PROJECT.SEARCH", "بحث عربي مطبَّع وتصفية بالوسوم", "R14", true, "مكتمل — بحث في الاسم والوصف والوسوم دون إنترنت"),
-        Feature("BACKUP.LOCAL", "نسخ احتياطي واستعادة محلية بصيغة JSON", "R14", true, "مكتمل — تصدير واستعادة دمجية عبر منتقي ملفات النظام")
+        Feature("BACKUP.LOCAL", "نسخ احتياطي واستعادة محلية بصيغة JSON", "R14", true, "مكتمل — تصدير واستعادة دمجية عبر منتقي ملفات النظام"),
+        Feature("UI.TEMPLATES", "قوالب بداية جاهزة للفكرة والهدف والتقنية", "R15", true, "مكتمل — قوالب محلية قابلة للتعديل بعد الاختيار"),
+        Feature("GATEWAY.USAGE", "عرض استهلاك البوابة لآخر 30 يوماً", "R15", true, "مكتمل — قراءة فقط بعد الموافقة وتهيئة الحساب"),
+        Feature("SEC.HTTPS", "فرض HTTPS وقيود النسخ الاحتياطي", "R15", true, "مكتمل — سياسة عنوان + Network Security Config + استثناءات نسخ"),
+        Feature("OPS.GATEWAY", "جاهزية البوابة وسجلاتها وإغلاقها اللطيف", "R15", true, "مكتمل — /readyz وX-Request-Id وسجلات JSON وحاوية Docker")
     )
 
     fun byId(id: String): Feature? = features.firstOrNull { it.id == id }

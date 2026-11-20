@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+*.test.mjs
+README.md
+Dockerfile
+compose.yaml
