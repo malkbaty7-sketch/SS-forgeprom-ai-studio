@@ -123,27 +123,49 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
         error("انتهت مهلة متابعة المهمة؛ قد يستمر التنفيذ على الخادم")
     }
 
-    suspend fun storyIndex(book: String, action: String, body: JSONObject? = null): JSONObject =
-        withContext(Dispatchers.IO) {
-            val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
-            require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
-                base.query == null && base.fragment == null)
-            val path = base.newBuilder().addPathSegment("story").addPathSegment(book)
-            val key = apiKeyStore.openAiKey()
-            require(key.isNotBlank())
-            val request = Request.Builder().header("Authorization", "Bearer $key")
-            when (action) {
-                "chapters", "search" -> request.url(path.addPathSegment(action).build())
-                    .post(requireNotNull(body).toString().toRequestBody(jsonMedia))
-                "delete" -> request.url(path.build()).delete()
-                else -> error("Unknown story action")
-            }
-            jobsClient.newBuilder().callTimeout(45, TimeUnit.SECONDS).build()
-                .newCall(request.build()).execute().use { response ->
-                    require(response.isSuccessful) { "HTTP ${response.code}" }
-                    JSONObject(response.body?.string().orEmpty())
-                }
+    internal suspend fun billingInvoices(): JSONArray = withContext(Dispatchers.IO) {
+        val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+        require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+            base.query == null && base.fragment == null)
+        val key = apiKeyStore.openAiKey()
+        require(key.isNotBlank())
+        val request = Request.Builder()
+            .url(base.newBuilder().addPathSegment("billing").addPathSegment("invoices").build())
+            .header("Authorization", "Bearer $key").build()
+        jobsClient.newBuilder().callTimeout(20, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
+            require(response.isSuccessful)
+            JSONObject(response.body?.string().orEmpty()).getJSONArray("invoices")
         }
+    }
+
+    suspend fun storyIndex(book: String, action: String, body: JSONObject? = null): JSONObject =
+        storyIndexSession(book)(action, body)
+
+    // Capture the destination and account once so a resumed replacement cannot switch indexes.
+    internal fun storyIndexSession(book: String): suspend (String, JSONObject?) -> JSONObject {
+        val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+        require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+            base.query == null && base.fragment == null)
+        val key = apiKeyStore.openAiKey()
+        require(key.isNotBlank())
+        return { action, body ->
+            withContext(Dispatchers.IO) {
+                val path = base.newBuilder().addPathSegment("story").addPathSegment(book)
+                val request = Request.Builder().header("Authorization", "Bearer $key")
+                when (action) {
+                    "chapters", "search" -> request.url(path.addPathSegment(action).build())
+                        .post(requireNotNull(body).toString().toRequestBody(jsonMedia))
+                    "delete" -> request.url(path.build()).delete()
+                    else -> error("Unknown story action")
+                }
+                jobsClient.newBuilder().callTimeout(45, TimeUnit.SECONDS).build()
+                    .newCall(request.build()).execute().use { response ->
+                        require(response.isSuccessful) { "HTTP ${response.code}" }
+                        JSONObject(response.body?.string().orEmpty())
+                    }
+            }
+        }
+    }
 
     override suspend fun analyzeImage(bytes: ByteArray, mime: String, note: String): Result<ImageAnalysisResult> =
         Result.failure(UnsupportedOperationException(

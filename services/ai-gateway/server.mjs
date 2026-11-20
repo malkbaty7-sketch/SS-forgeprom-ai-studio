@@ -14,6 +14,9 @@ const usageModule = DATABASE_URL && process.env.ENABLE_USAGE === '1' ? await imp
 const usage = usageModule?.createUsage(DATABASE_URL);
 const storyModule = DATABASE_URL && process.env.ENABLE_STORY_INDEX === '1' ? await import('./story.mjs') : null;
 const story = storyModule?.createStory(DATABASE_URL, OPENAI_API_KEY);
+const billingModule = process.env.ENABLE_BILLING === '1' ? await import('./billing.mjs') : null;
+if (billingModule && !DATABASE_URL) throw new Error('Billing requires DATABASE_URL');
+const billing = billingModule?.createBilling(DATABASE_URL, process.env.STRIPE_SECRET_KEY, process.env.STRIPE_CUSTOMERS);
 let active = 0;
 const metrics = { accepted: 0, upstreamFailures: 0, completed: 0, upstreamLatencyMs: 0 };
 
@@ -32,6 +35,30 @@ createServer(async (req, res) => {
   if (usage && req.method === 'GET' && req.url === '/v1/usage') {
     try { return send(res, 200, { days: await usage.recent(account.key) }); }
     catch { return send(res, 503, { error: 'Usage service unavailable' }); }
+  }
+  if (billing && req.url === '/v1/billing/invoices' && ['GET', 'POST'].includes(req.method)) {
+    if (req.method === 'POST' && !account.admin) return send(res, 403, { error: 'Forbidden' });
+    if (active >= 4) return send(res, 429, { error: 'Gateway busy' }, { 'Retry-After': '2' });
+    active++;
+    try {
+      const retryAfter = await takeQuota(account);
+      if (retryAfter) return send(res, 429, { error: 'Account limit reached' }, { 'Retry-After': String(retryAfter) });
+      if (req.method === 'GET') return send(res, 200, { invoices: await billing.list(account.key) });
+      const chunks = [];
+      let length = 0;
+      for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+        length += chunk.length;
+        if (length > 8192) return send(res, 413, { error: 'Body too large' }, { Connection: 'close' });
+        chunks.push(chunk);
+      }
+      let input;
+      try { input = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+      catch { return send(res, 400, { error: 'Invalid JSON' }); }
+      return send(res, 200, await billing.issue(input));
+    } catch (error) {
+      if (error instanceof billingModule.BillingError) return send(res, error.status, { error: error.message });
+      return send(res, 503, { error: 'Billing unavailable; retry issuance with the same reference' });
+    } finally { active--; }
   }
   const jobId = /^\/v1\/jobs\/([a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})$/.exec(req.url)?.[1];
   if (jobs && req.method === 'GET' && jobId) {
