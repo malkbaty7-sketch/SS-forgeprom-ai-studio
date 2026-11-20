@@ -4,6 +4,11 @@ import android.widget.Toast
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.forgeprom.studio.domain.CinematicAction
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
@@ -135,22 +140,37 @@ private fun SmartEditDialog(
     var busy by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("المخرج التفاعلي") },
+        title = { Text(if (preview == null) "المخرج التفاعلي" else "معاينة التعديل") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("يُرسل التحديد وتعليماتك فقط إلى مزوّد التوليد السحابي المختار.")
-                Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
-                OutlinedTextField(
-                    value = direction,
-                    onValueChange = { direction = it.take(500); preview = null; error = null },
-                    enabled = !busy,
-                    label = { Text("مثال: أضف صوت المطر") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (edit.selection.length > 8_000) Text("حدّد مقطعاً لا يتجاوز ٨٠٠٠ حرف.")
-                if (busy) Text("جارٍ إعداد الاقتراح…")
-                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                preview?.let { Text("الاقتراح:"); Text(it) }
+                val replacement = preview
+                if (replacement != null) {
+                    ComparisonPassage("النص الأصلي", edit.selection)
+                    HorizontalDivider()
+                    ComparisonPassage("النص المعدّل", replacement)
+                } else {
+                    Text("يُرسل التحديد وتعليماتك فقط إلى مزوّد التوليد السحابي المختار.")
+                    Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
+                    Text("إجراءات سريعة", modifier = Modifier.semantics { heading() })
+                    CinematicAction.entries.forEach { action ->
+                        FilterChip(
+                            selected = direction == action.direction,
+                            enabled = !busy && edit.selection.length <= 8_000,
+                            onClick = { direction = action.direction; error = null },
+                            label = { Text(action.label) }
+                        )
+                    }
+                    OutlinedTextField(
+                        value = direction,
+                        onValueChange = { direction = it.take(500); error = null },
+                        enabled = !busy,
+                        label = { Text("توجيه التعديل") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (edit.selection.length > 8_000) Text("حدّد مقطعاً لا يتجاوز ٨٠٠٠ حرف.")
+                    if (busy) Text("جارٍ إعداد الاقتراح…")
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
             }
         },
         confirmButton = {
@@ -186,6 +206,15 @@ private fun SmartEditDialog(
                 }
             ) { Text("اقتراح تعديل") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("إلغاء") } }
+        dismissButton = {
+            if (preview != null) TextButton(onClick = { preview = null }) { Text("تعديل التوجيه") }
+            else TextButton(onClick = onDismiss) { Text("إلغاء") }
+        }
     )
+}
+
+@Composable
+private fun ComparisonPassage(label: String, passage: String) {
+    Text(label, style = MaterialTheme.typography.titleSmall, modifier = Modifier.semantics { heading() })
+    Text(passage, style = MaterialTheme.typography.bodyMedium)
 }

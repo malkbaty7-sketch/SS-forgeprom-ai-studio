@@ -24,6 +24,12 @@ class CinematicEditTest {
         assertNull(edit.apply(edit.source, "  "))
     }
 
+    @Test fun allPresetsProduceValidRewriteRequests() {
+        CinematicAction.entries.forEach { action ->
+            assertTrue(edit.request(action.direction).instruction.contains(action.direction))
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsBlankDirection() {
         edit.request(" ")
