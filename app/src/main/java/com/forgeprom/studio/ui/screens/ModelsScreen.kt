@@ -1,10 +1,12 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.ScreenHeading
+import com.forgeprom.studio.ui.components.ScreenNotice
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -40,7 +42,8 @@ import kotlinx.coroutines.launch
 fun ModelsScreen(container: AppContainer) {
     val settings by container.settings.settings.collectAsState(initial = AppSettings())
     val scope = rememberCoroutineScope()
-    var statuses by remember { mutableStateOf<List<EngineStatus>>(emptyList()) }
+    var statuses by remember { mutableStateOf<List<EngineStatus>?>(null) }
+    var statusError by remember { mutableStateOf(false) }
 
     var modelBusy by remember { mutableStateOf(false) }
     var modelMessage by remember { mutableStateOf("") }
@@ -67,22 +70,32 @@ fun ModelsScreen(container: AppContainer) {
     val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) changeModel("ثُبّت النموذج محليًا.") { container.neuralEngine.install(uri) }
     }
-    val neuralReady = statuses.any { it.id == container.neuralEngine.id && it.isReady }
+    val neuralReady = statuses.orEmpty().any { it.id == container.neuralEngine.id && it.isReady }
 
     LaunchedEffect(settings.cloudConsent, modelRevision) {
-        statuses = container.engines.allEngines().map { it.status(settings) }
+        statuses = null
+        statusError = false
+        try {
+            statuses = container.engines.allEngines().map { it.status(settings) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            statusError = true
+        }
     }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("المحركات", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("المحركات")
 
-        statuses.forEach { st ->
+        if (statusError) ScreenNotice("تعذّر قراءة حالة المحركات.", action = "إعادة المحاولة") { modelRevision++ }
+        else if (statuses == null) ScreenNotice("جارٍ قراءة حالة المحركات…", loading = true)
+        statuses.orEmpty().forEach { st ->
             Card(Modifier.padding(0.dp)) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(horizontalArrangement = Arrangement.SpaceBetween) {
+                    ActionGroup {
                         Text(st.label, style = MaterialTheme.typography.titleSmall)
                         StatusChip(label = if (st.isReady) "جاهز" else "غير جاهز", ready = st.isReady)
                     }
@@ -126,7 +139,7 @@ fun ModelsScreen(container: AppContainer) {
                         add("cloud.openai_compat" to "متوافق OpenAI")
                     }
                     options.chunked(2).forEach { group ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ActionGroup {
                             group.forEach { (id, name) ->
                                 FilterChip(
                                     selected = current == id,

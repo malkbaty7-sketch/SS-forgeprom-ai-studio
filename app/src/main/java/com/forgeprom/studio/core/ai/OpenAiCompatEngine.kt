@@ -15,6 +15,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
+internal class BillingHttpException(val status: Int) : java.io.IOException()
+
 /**
  * R5 — محرك متوافق مع OpenAI (متعدد المزودين: OpenAI، Groq، Together، إلخ)
  * عبر baseUrl وmodel قابلين للتهيئة. يستخدم فقط بعد بوابة الموافقة.
@@ -156,8 +158,10 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
             .url(base.newBuilder().addPathSegment("billing").addPathSegment("invoices").build())
             .header("Authorization", "Bearer $key").build()
         jobsClient.newBuilder().callTimeout(20, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
-            require(response.isSuccessful)
-            JSONObject(response.body?.string().orEmpty()).getJSONArray("invoices")
+            if (!response.isSuccessful) throw BillingHttpException(response.code)
+            JSONObject(response.body?.string().orEmpty()).getJSONArray("invoices").also { invoices ->
+                for (i in 0 until invoices.length()) invoices.getJSONObject(i)
+            }
         }
     }
 

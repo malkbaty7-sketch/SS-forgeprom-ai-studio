@@ -1,5 +1,6 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ScreenHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +26,7 @@ fun AboutScreen() {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Forgeprom Code Studio", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("Forgeprom Code Studio")
         Text(
             "الإصدار 1.0.0-mvp (v2)",
             style = MaterialTheme.typography.bodyMedium,
