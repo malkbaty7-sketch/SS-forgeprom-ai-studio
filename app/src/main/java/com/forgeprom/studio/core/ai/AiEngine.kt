@@ -20,7 +20,8 @@ data class GenerationRequest(
     val tech: String,
     val projectContext: String = "",
     val promptLanguage: PromptLanguage = PromptLanguage.AR,
-    val isImageInspired: Boolean = false
+    val isImageInspired: Boolean = false,
+    val cinematicEdit: Boolean = false
 )
 
 data class ImageAnalysisResult(
