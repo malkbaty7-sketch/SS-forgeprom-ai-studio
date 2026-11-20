@@ -14,7 +14,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.forgeprom.studio.domain.CinematicAction
-import com.forgeprom.studio.ui.i18n.TextButton
+import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.forgeprom.studio.domain.CinematicEdit

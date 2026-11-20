@@ -43,8 +43,7 @@ class MainActivity : ComponentActivity() {
             ForgepromTheme(themeMode = settings.themeMode) {
                 // الاتجاه يتبع لغة الواجهة: RTL للعربية وLTR لغيرها.
                 val configuration = LocalConfiguration.current
-                val isRtl = configuration.layoutDirection == LayoutDirection.Rtl ||
-                    configuration.locales[0].language == LanguageStore.AR
+                val isRtl = configuration.locales[0].language == LanguageStore.AR
                 CompositionLocalProvider(
                     LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                 ) {
