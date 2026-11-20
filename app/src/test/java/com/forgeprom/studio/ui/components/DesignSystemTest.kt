@@ -16,7 +16,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
-@Config(sdk = [34])
+@Config(sdk = [34], qualifiers = "ar")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class DesignSystemTest {
 
