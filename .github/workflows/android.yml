@@ -30,10 +30,8 @@ jobs:
         shell: bash
         run: |
           if ! gradle testDebugUnitTest --console=plain --stacktrace 2>&1 | tee android-test.log; then
-            while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^.* > .* FAILED|^Execution failed|^Caused by:' android-test.log | head -12)
-            for f in app/build/test-results/testDebugUnitTest/TEST-*.xml; do
-              grep -o '<failure[^>]*' "$f" | head -4 | cut -c1-600 | while IFS= read -r detail; do printf '::error::%s\n' "$detail"; done
-            done
+            find app/build/test-results -name '*.xml' -print0 2>/dev/null | xargs -0 grep -h -o '<failure[^>]*' 2>/dev/null | head -6 | cut -c1-900 | while IFS= read -r detail; do printf '::error::%s\n' "$detail"; done
+            while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^.* > .* FAILED|^Execution failed|^Caused by:' android-test.log | head -5)
             exit 1
           fi
 
