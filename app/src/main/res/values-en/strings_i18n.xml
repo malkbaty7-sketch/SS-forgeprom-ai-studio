@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_language">"Language"</string>
+    <string name="language_arabic">"Arabic"</string>
+    <string name="language_english">"English"</string>
+    <string name="language_note">"Changing the language reloads the interface. Generated text stays in the prompt language."</string>
+</resources>

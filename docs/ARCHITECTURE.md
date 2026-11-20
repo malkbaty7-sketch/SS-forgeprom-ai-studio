@@ -18,6 +18,7 @@ core/
   backup/         SimpleJson + BackupCodec + BackupRepository + PromptFile — تصدير/استعادة وملف موجّه
   jobs/           PendingSceneStore + SceneJobWorker + SceneNotifier — استئناف مهام الطابور في الخلفية
   ../ui/components/  مكوّنات واجهة قابلة للاختبار (TokenEstimateCard)
+  ../ui/i18n/       UiCatalog + Text مُعرَّب (values-en) — العربية افتراضية
   registry/       FeatureRegistry — سجل ميزات صادق
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
 domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters، EndpointPolicy، UsageSummary، PromptTemplates — Kotlin نقي
@@ -59,3 +60,9 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 - `assembleRelease` يفعّل R8 وتقليص الموارد. القواعد في `app/proguard-rules.pro`.
 - التوقيع من `keystore.properties` (خارج git) أو متغيرات `FORGEPROM_*`، وبدونهما يخرج APK غير موقّع.
 - اختبارات Compose تعمل على JVM عبر Robolectric؛ النشاط الفارغ معلن في `app/src/debug/AndroidManifest.xml` فقط.
+
+## التعريب
+
+- النصوص العربية هي المفتاح في `UiCatalog` وتُحلّ إلى مورد في `values/strings_ui.xml`، والإنجليزية في `values-en`.
+- `ui.i18n.Text` يستبدل `material3.Text` في شاشات الواجهة ويترجم عند العرض؛ النصوص الديناميكية تمر كما هي.
+- اللغة تُحفظ في `LanguageStore` وتُفرض في `MainActivity.attachBaseContext`، والاتجاه يُحسب من إعداد اللغة.

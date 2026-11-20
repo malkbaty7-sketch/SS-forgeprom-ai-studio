@@ -17,7 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import com.forgeprom.studio.ui.i18n.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,18 +30,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.registry.FeatureRegistry
+import com.forgeprom.studio.R
 import com.forgeprom.studio.core.settings.AppSettings
+import com.forgeprom.studio.core.settings.LanguageStore
 import com.forgeprom.studio.core.settings.PromptLanguage
 import com.forgeprom.studio.core.settings.ThemeMode
 import com.forgeprom.studio.domain.EndpointPolicy
 import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.SectionCard
 import com.forgeprom.studio.ui.components.StatusChip
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import kotlinx.coroutines.launch
 
 /**
@@ -91,6 +97,8 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
                 }
             }
         }
+
+        LanguageSection()
 
         SectionCard("لغة البرومبت الناتج") {
             ActionGroup {
@@ -206,4 +214,43 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
         OutlinedButton(onClick = onAbout, modifier = Modifier.fillMaxWidth()) { Text("حول التطبيق") }
         PhaseNote("التشفير عبر EncryptedSharedPreferences من AndroidX Security. يمكن إدارة النموذج العصبي المحلي الاختياري من شاشة المحركات.")
     }
+}
+
+@Composable
+private fun LanguageSection() {
+    val context = LocalContext.current
+    val store = remember { LanguageStore(context) }
+    var current by remember { mutableStateOf(store.current()) }
+    SectionCard(stringResource(R.string.ui_language)) {
+        ActionGroup {
+            listOf(
+                LanguageStore.AR to stringResource(R.string.language_arabic),
+                LanguageStore.EN to stringResource(R.string.language_english)
+            ).forEach { (code, label) ->
+                FilterChip(
+                    selected = current == code,
+                    onClick = {
+                        if (current != code) {
+                            store.set(code)
+                            current = code
+                            context.findActivity()?.recreate()
+                        }
+                    },
+                    label = { Text(label) }
+                )
+            }
+        }
+        Text(
+            stringResource(R.string.language_note),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/** Compose يمرّر سياقاً ملفوفاً؛ نفكّ الغلاف للوصول إلى النشاط. */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
