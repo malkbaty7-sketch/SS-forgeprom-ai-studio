@@ -102,8 +102,8 @@ fun DashboardScreen(
                     "جاهز: " + FeatureRegistry.readyCount() + " ميزة — منها المحرك المحلي دون إنترنت",
                     ready = true
                 )
-                StatusChip("قيد التكامل: النموذج العصبي على الجهاز (المحرك المحلي الحالي قاعدي)", ready = false)
-                StatusChip("تحليل الصور: سحابي اختياري بموافقة — لا ادعاء عمل محلي", ready = false)
+                StatusChip("النموذج العصبي اختياري: استورد حزمة متوافقة من شاشة المحركات", ready = false)
+                StatusChip("تحليل الصور: محلي محدود أو Gemini بموافقة", ready = true)
                 Text(
                     "اضغط للاطلاع على القائمة الكاملة في «حول التطبيق» من الإعدادات.",
                     style = MaterialTheme.typography.bodySmall,

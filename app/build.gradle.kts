@@ -70,6 +70,9 @@ dependencies {
     // R4/R8 — عملاء الشبكة للمزودين السحابيين (اختياري، بموافقة)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("com.google.mediapipe:tasks-genai:0.10.24")
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     // R12 — اختبارات وحدة لطبقة المجال
     testImplementation("junit:junit:4.13.2")

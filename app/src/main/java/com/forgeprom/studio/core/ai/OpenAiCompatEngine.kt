@@ -123,6 +123,29 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
         error("انتهت مهلة متابعة المهمة؛ قد يستمر التنفيذ على الخادم")
     }
 
+    internal suspend fun webSearch(query: String): JSONArray = withContext(Dispatchers.IO) {
+        val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+        require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+            base.query == null && base.fragment == null)
+        val key = apiKeyStore.openAiKey()
+        require(key.isNotBlank())
+        val request = Request.Builder()
+            .url(base.newBuilder().addPathSegment("web").addPathSegment("search").build())
+            .header("Authorization", "Bearer $key")
+            .post(JSONObject().put("query", query).toString().toRequestBody(jsonMedia)).build()
+        jobsClient.newBuilder().callTimeout(15, TimeUnit.SECONDS).build().newCall(request).execute().use { response ->
+            check(response.isSuccessful) {
+                when (response.code) {
+                    401, 403 -> "تحقّق من رمز حساب البوابة."
+                    404 -> "البحث غير متاح على عنوان البوابة المهيّأ."
+                    429 -> "بلغت حد الطلبات. انتظر ثم أعد المحاولة."
+                    else -> "تعذّر البحث الآن. حاول مرة أخرى."
+                }
+            }
+            JSONObject(response.body?.string().orEmpty()).getJSONArray("results")
+        }
+    }
+
     internal suspend fun billingInvoices(): JSONArray = withContext(Dispatchers.IO) {
         val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
         require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&

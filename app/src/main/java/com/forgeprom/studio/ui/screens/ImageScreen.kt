@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -30,18 +31,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.ai.ImageAnalysisResult
+import com.forgeprom.studio.core.ai.LocalImageAnalyzer
+import com.forgeprom.studio.core.ai.generationContext
 import com.forgeprom.studio.core.registry.FeatureRegistry
 import com.forgeprom.studio.core.settings.AppSettings
 import com.forgeprom.studio.core.util.Connectivity
 import com.forgeprom.studio.ui.components.PhaseNote
 import com.forgeprom.studio.ui.components.SectionCard
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * R8 — تحليل صورة واجهة (سحابي اختياري عبر Gemini بموافقة صريحة).
- * مبدأ الصدق: التحليل المحلي للصور غير متاح — يُعلن ذلك بوضوح.
+ * R8 — تحليل بصري محلي أو تحليل Gemini اختياري بموافقة صريحة.
  */
 @Composable
 fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
@@ -49,6 +54,7 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    var cloudMode by remember { mutableStateOf(false) }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var legalOnly by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
@@ -68,12 +74,20 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
     ) {
         Text("تحليل صورة واجهة", style = MaterialTheme.typography.headlineSmall)
         Text(
-            "حوّل صورة تصميم إلى وصف بنيوي دقيق يُدمج في البرومبت.",
+            "استخرج وصفًا بصريًا أوليًا للاستلهام من صورة التصميم.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        OutlinedButton(onClick = { picker.launch("image/*") }) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = !cloudMode, enabled = !busy, onClick = {
+                cloudMode = false; result = null; error = null
+            }, label = { Text("محلي دون اتصال") })
+            FilterChip(selected = cloudMode, enabled = !busy, onClick = {
+                cloudMode = true; result = null; error = null
+            }, label = { Text("Gemini سحابي") })
+        }
+        OutlinedButton(enabled = !busy, onClick = { picker.launch("image/*") }) {
             Text(if (imageUri == null) "اختيار صورة" else "تغيير الصورة")
         }
         if (imageUri != null) Text("تم اختيار صورة ✓", style = MaterialTheme.typography.bodySmall)
@@ -90,40 +104,41 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
                 val uri = imageUri
                 if (uri == null) { error = "اختر صورة أولاً"; return@Button }
                 if (!legalOnly) { error = "يجب الإقرار بأن الاستخدام استلهام فقط"; return@Button }
-                if (!settings.cloudConsent) {
+                if (cloudMode && !settings.cloudConsent) {
                     error = "موافقة السحابة غير ممنوحة — فعّلها من الإعدادات أولاً (لا يُرسل شيء دون موافقة)"
                     return@Button
                 }
-                if (!Connectivity.isOnline(context)) { error = "لا اتصال بالإنترنت — التحليل سحابي"; return@Button }
-                if (container.apiKeys.geminiKey().isBlank()) { error = "أدخل مفتاح Gemini من الإعدادات"; return@Button }
+                if (cloudMode && !Connectivity.isOnline(context)) { error = "لا اتصال بالإنترنت — التحليل سحابي"; return@Button }
+                if (cloudMode && container.apiKeys.geminiKey().isBlank()) { error = "أدخل مفتاح Gemini من الإعدادات"; return@Button }
 
+                val useCloud = cloudMode
                 busy = true
                 scope.launch {
-                    val res = withContext(Dispatchers.IO) {
-                        try {
-                            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                                ?: throw IllegalStateException("تعذر قراءة الصورة")
-                            if (bytes.size > 5 * 1024 * 1024)
-                                throw IllegalArgumentException("حجم الصورة يتجاوز 5MB")
-                            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                            container.engines.engineById("cloud.gemini").analyzeImage(bytes, mime, note)
-                        } catch (e: Exception) {
-                            Result.failure<ImageAnalysisResult>(e)
+                    try {
+                        val bytes = withContext(Dispatchers.IO) {
+                            context.contentResolver.openInputStream(uri)?.use { readBoundedImage(it) }
+                                ?: throw IllegalArgumentException("تعذّر قراءة الصورة")
                         }
+                        val analysis = if (useCloud) {
+                            container.engines.cloudGate().getOrThrow()
+                            val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                            container.engines.engineById("cloud.gemini").analyzeImage(bytes, mime, note).getOrThrow()
+                        } else LocalImageAnalyzer.analyze(bytes)
+                        result = analysis
+                        container.logActivity("image", if (useCloud) "تحليل صورة عبر Gemini" else "تحليل صورة محلي")
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        error = if (e is IllegalArgumentException || e is SecurityException) e.message ?: "تعذّر تحليل الصورة."
+                            else "تعذّر تحليل الصورة. تحقّق من الملف وإعدادات المحرك."
+                    } finally {
+                        busy = false
                     }
-                    busy = false
-                    res.fold(
-                        onSuccess = { r ->
-                            result = r
-                            container.logActivity("image", "تحليل صورة عبر Gemini — ثقة " + (r.confidence * 100).toInt() + "%")
-                        },
-                        onFailure = { e -> error = e.message ?: "فشل تحليل الصورة" }
-                    )
                 }
             },
             enabled = !busy,
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (busy) "جارٍ التحليل…" else "تحليل الصورة عبر Gemini") }
+        ) { Text(if (busy) "جارٍ التحليل…" else if (cloudMode) "تحليل الصورة عبر Gemini" else "تحليل الصورة محليًا") }
 
         if (busy) CircularProgressIndicator()
         error?.let {
@@ -134,18 +149,19 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("نوع الشاشة: " + r.screenType, style = MaterialTheme.typography.titleSmall)
-                    Text("المكونات: " + r.components.joinToString("، "))
+                    Text((if (cloudMode) "المكونات: " else "التسميات البصرية: ") + r.components.joinToString("، "))
                     Text("الألوان: " + r.colors.entries.joinToString("، ") { it.key + "=" + it.value })
                     Text("التخطيط: " + r.layout)
-                    Text("الحالات: " + r.states.joinToString("، "))
+                    if (r.states.isNotEmpty()) Text("الحالات: " + r.states.joinToString("، "))
                     if (r.assumptions.isNotEmpty())
                         Text("افتراضات: " + r.assumptions.joinToString("، "))
                     Text(
-                        "الثقة: " + (r.confidence * 100).toInt() + "%",
+                        (if (cloudMode) "الثقة: " else "ثقة أعلى تسمية بصرية: ") + (r.confidence * 100).toInt() + "%",
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
+            Text("عند اعتماد التحليل، قد يُرسل الوصف إلى محرك التوليد السحابي إذا اخترته وفعّلت الموافقة. لا تُرفق الصورة الأصلية بطلب التوليد.")
             Button(
                 onClick = {
                     val s = container.session
@@ -156,7 +172,7 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
                     s.tech = ""
                     s.imageAnalysis = r
                     s.draft = com.forgeprom.studio.domain.IdeaAnalyzer.analyze(
-                        s.sourceInstruction, s.goal, s.tech
+                        s.sourceInstruction + "\n" + r.generationContext(), s.goal, s.tech
                     )
                     onUseAnalysis()
                 },
@@ -173,6 +189,18 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        PhaseNote("التحليل السحابي يرسل الصورة إلى Google Gemini فقط بعد موافقتك الصريحة. لا تحليل محلي للصور في هذه النسخة.")
+        PhaseNote("التحليل السحابي يرسل الصورة إلى Google Gemini فقط بعد موافقتك الصريحة. التحليل المحلي لا يرسل الصورة، ويقدّم ألوانًا وتسميات عامة وتوزيع النص اللاتيني، لا تفسيرًا كاملًا للواجهة.")
     }
+}
+
+private fun readBoundedImage(input: InputStream): ByteArray {
+    val result = ByteArrayOutputStream()
+    val buffer = ByteArray(8192)
+    while (true) {
+        val count = input.read(buffer)
+        if (count < 0) break
+        require(result.size() + count <= 5 * 1024 * 1024) { "حجم الصورة يتجاوز 5 ميبيبايت." }
+        result.write(buffer, 0, count)
+    }
+    return result.toByteArray()
 }

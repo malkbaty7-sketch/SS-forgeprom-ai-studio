@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
+import com.forgeprom.studio.core.ai.LocalNeuralEngine
 import com.forgeprom.studio.core.ai.OpenAiCompatEngine
+import kotlinx.coroutines.flow.first
 import com.forgeprom.studio.core.util.Exporter
 import com.forgeprom.studio.domain.StoryAnalysis
 import com.forgeprom.studio.domain.StoryContext
@@ -319,7 +321,7 @@ internal fun SceneDraftDialog(
                             TextButton(enabled = !busy, onClick = { semantic = null }) { Text("إلغاء الانتقاء الدلالي") }
                         }
                     }
-                    Text("يُرسل وصف المشهد للمزوّد السحابي. لا يُرسل نص المحرّر. تُرسل الملاحظات فقط عند اختيار إرفاقها.")
+                    Text("مع النموذج المحلي يبقى التوليد على الجهاز. إذا اخترت مزوّدًا سحابيًا، يُرسل وصف المشهد والملاحظات المرفقة فقط؛ لا يُرسل نص المحرّر.")
                     Row {
                         Checkbox(autoSave, { checked ->
                             autoSave = checked
@@ -483,14 +485,14 @@ internal fun SceneDraftDialog(
                 val request = SceneDraft.request(brief, outgoingNotes, direction, format).copy(useGatewayQueue = queue)
                 scope.launch {
                     try {
-                        val settings = container.engines.cloudGate().getOrNull()
-                        if (settings == null) {
+                        val settings = container.settings.settings.first()
+                        val engine = container.engines.engineById(settings.engineGeneral)
+                        if (!engine.isLocal && container.engines.cloudGate().isFailure) {
                             message = "فعّل الموافقة السحابية من الإعدادات أولاً."
                             return@launch
                         }
-                        val engine = container.engines.engineById(settings.engineGeneral)
-                        if (engine.isLocal || !engine.status(settings).isReady) {
-                            message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
+                        if ((engine.isLocal && engine !is LocalNeuralEngine) || !engine.status(settings).isReady) {
+                            message = "اختر نموذجًا عصبيًا محليًا مثبّتًا أو مزوّدًا سحابيًا جاهزًا."
                             return@launch
                         }
                         if (request.useGatewayQueue && engine !is OpenAiCompatEngine) {
