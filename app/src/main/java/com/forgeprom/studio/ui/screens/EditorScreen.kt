@@ -33,10 +33,12 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -101,6 +103,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     }
     var autosavedAt by remember(promptId) { mutableStateOf<Long?>(null) }
     var showExitConfirm by remember(promptId) { mutableStateOf(false) }
+    var savedSuccessfully by remember(promptId) { mutableStateOf(false) }
 
     // حفظ تلقائي بعد توقف الكتابة ١٫٥ ثانية، ولا يبدأ قبل حسم المسودة القديمة.
     LaunchedEffect(content, title, pendingDraft) {
@@ -109,6 +112,23 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         delay(1500)
         container.drafts.save(promptId, title.trim(), content)
         autosavedAt = System.currentTimeMillis()
+    }
+
+    // عند مغادرة الشاشة قبل انقضاء مهلة الحفظ التلقائي (رجوع سريع أو شريط علوي)
+    // نكتب المسودة فوراً، إلا إذا كان الحفظ النهائي قد نجح.
+    val latestTitle by rememberUpdatedState(title)
+    val latestContent by rememberUpdatedState(content)
+    val latestPrompt by rememberUpdatedState(prompt)
+    DisposableEffect(promptId) {
+        onDispose {
+            if (!savedSuccessfully) {
+                val lastTitle = latestTitle.trim()
+                val lastContent = latestContent
+                if (lastContent != latestPrompt.content || lastTitle != latestPrompt.title) {
+                    container.drafts.save(promptId, lastTitle, lastContent)
+                }
+            }
+        }
     }
 
     val hasUnsavedChanges = content != prompt.content || title.trim() != prompt.title
@@ -232,6 +252,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                 scope.launch {
                     try {
                         container.db.promptDao().update(updated)
+                        savedSuccessfully = true
                         container.drafts.clear(promptId)
                         container.logActivity("editor", "تعديل موجه: " + updated.title)
                         Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()

@@ -72,6 +72,13 @@ fun BackupScreen(container: AppContainer) {
         scope.launch {
             try {
                 val json = repository.exportJson()
+                if (json.length > BackupRules.MAX_FILE_CHARS) {
+                    fail(
+                        "حجم بياناتك يتجاوز حد ملف النسخة الاحتياطية (٨ ميغابايت). " +
+                            "أرشِف بعض المشاريع أو احذف ما لا تحتاجه ثم أعد المحاولة."
+                    )
+                    return@launch
+                }
                 val written = withContext(Dispatchers.IO) { writeText(context, uri, json) }
                 if (written) {
                     message = "تم إنشاء النسخة الاحتياطية. احفظ الملف في مكان آمن."
