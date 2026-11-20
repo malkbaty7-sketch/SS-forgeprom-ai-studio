@@ -206,7 +206,8 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
         OutlinedButton(
             enabled = !busy && !importing,
             onClick = {
-                importLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream"))
+                // نسمح بكل الأنواع كي لا يخفي منتقي الملفات امتداد .forgeprom غير المسجّل.
+                importLauncher.launch(arrayOf("*/*"))
             }
         ) { Text("استيراد موجّه (.forgeprom)") }
 
