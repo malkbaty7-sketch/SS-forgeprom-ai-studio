@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_language">"اللغة"</string>
+    <string name="language_arabic">"العربية"</string>
+    <string name="language_english">"English"</string>
+    <string name="language_note">"تغيير اللغة يعيد تحميل الواجهة. النصوص المولّدة تبقى بلغة الموجّه."</string>
+</resources>

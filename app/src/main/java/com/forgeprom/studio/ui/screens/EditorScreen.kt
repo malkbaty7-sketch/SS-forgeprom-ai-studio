@@ -14,7 +14,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import com.forgeprom.studio.domain.CinematicAction
-import androidx.compose.material3.TextButton
+import com.forgeprom.studio.ui.i18n.TextButton
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.forgeprom.studio.domain.CinematicEdit
@@ -34,7 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import com.forgeprom.studio.ui.i18n.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState

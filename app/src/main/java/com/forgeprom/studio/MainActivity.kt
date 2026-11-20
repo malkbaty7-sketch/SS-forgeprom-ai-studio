@@ -1,5 +1,7 @@
 package com.forgeprom.studio
 
+import android.content.Context
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,13 +9,28 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.forgeprom.studio.core.settings.AppSettings
+import com.forgeprom.studio.core.settings.LanguageStore
 import com.forgeprom.studio.ui.navigation.AppNavHost
 import com.forgeprom.studio.ui.theme.ForgepromTheme
 
 class MainActivity : ComponentActivity() {
+
+    /** يطبّق لغة الواجهة المختارة على الموارد قبل بناء الواجهة. */
+    override fun attachBaseContext(newBase: Context) {
+        val language = LanguageStore(newBase).current()
+        // نفرض اللغة المختارة دائماً (لا نعتمد على لغة النظام) كي لا تسرّب
+        // موارد values-en إلى مستخدم اختار العربية على جهاز إنجليزي.
+        val locale = java.util.Locale.forLanguageTag(language)
+        val config = Configuration(newBase.resources.configuration).apply {
+            setLocale(locale)
+            setLayoutDirection(locale)
+        }
+        super.attachBaseContext(newBase.createConfigurationContext(config))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -24,8 +41,13 @@ class MainActivity : ComponentActivity() {
                 initial = AppSettings()
             )
             ForgepromTheme(themeMode = settings.themeMode) {
-                // الواجهة عربية أولاً — اتجاه RTL دائم في هذه النسخة
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                // الاتجاه يتبع لغة الواجهة: RTL للعربية وLTR لغيرها.
+                val configuration = LocalConfiguration.current
+                val isRtl = configuration.layoutDirection == LayoutDirection.Rtl ||
+                    configuration.locales[0].language == LanguageStore.AR
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+                ) {
                     AppNavHost(container = container)
                 }
             }

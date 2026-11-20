@@ -52,7 +52,8 @@ object FeatureRegistry {
         Feature("SHARE.PROMPTFILE", "مشاركة واستيراد ملف .forgeprom", "R16", true, "مكتمل — ترميز مستقل وتحقق من الصيغة والإصدار"),
         Feature("JOBS.RESUME", "استئناف مهام المشهد بعد إغلاق التطبيق", "R16", true, "مكتمل — WorkManager يستعلم فقط ولا يعيد الإرسال؛ الإشعار اختياري"),
         Feature("BUILD.RELEASE", "بناء إصدار مصغّر وموقّع", "R17", true, "R8 وتقليص الموارد مفعّلان؛ التوقيع يُقرأ من keystore.properties أو متغيرات البيئة، وغيابه يعني APK غير موقّع"),
-        Feature("TEST.COMPOSE", "اختبارات Compose على JVM", "R17", true, "مكوّن TokenEstimateCard مغطّى باختبارين عبر Robolectric داخل CI")
+        Feature("TEST.COMPOSE", "اختبارات Compose على JVM", "R17", true, "مكوّن TokenEstimateCard مغطّى باختبارين عبر Robolectric داخل CI"),
+        Feature("UI.I18N", "واجهة عربية وإنجليزية", "R18", true, "العربية افتراضية والإنجليزية عبر values-en وكتالوج ترجمة؛ 13 نصاً ديناميكياً ورسائل المشاركة خارج التغطية")
     )
 
     fun byId(id: String): Feature? = features.firstOrNull { it.id == id }
