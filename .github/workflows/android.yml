@@ -42,3 +42,17 @@ jobs:
         with:
           name: forgeprom-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Build release APK (R8 + shrink)
+        shell: bash
+        run: |
+          if ! gradle assembleRelease --console=plain --stacktrace 2>&1 | tee android-release.log; then
+            while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^Execution failed|^Caused by:|R8|Missing class' android-release.log | head -20)
+            exit 1
+          fi
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: forgeprom-release-unsigned-apk
+          path: app/build/outputs/apk/release/*.apk
