@@ -19,6 +19,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import com.forgeprom.studio.domain.CinematicEdit
 import com.forgeprom.studio.domain.TokenEstimator
+import com.forgeprom.studio.ui.components.TokenEstimateCard
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.Arrangement
@@ -472,19 +473,15 @@ private fun SmartEditDialog(
                 } else {
                     Text("يُرسل التحديد وتوجيهك إلى المزوّد السحابي المختار. لا يُرسل النص المحيط إلا إذا اخترت إرفاقه.")
                     Text(edit.selection.take(240) + if (edit.selection.length > 240) "…" else "")
-                    val estimate = TokenEstimator.estimateRequest(
-                        listOf(
-                            edit.selection,
-                            direction,
-                            if (includeContext) edit.contextBefore + edit.contextAfter else ""
-                        ),
-                        800
-                    )
-                    Text(
-                        "تقدير الطلب: ~" + estimate.inputTokens + " رمز إدخال + حتى " +
-                            estimate.maxOutputTokens + " إخراج.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    TokenEstimateCard(
+                        TokenEstimator.estimateRequest(
+                            listOf(
+                                edit.selection,
+                                direction,
+                                if (includeContext) edit.contextBefore + edit.contextAfter else ""
+                            ),
+                            800
+                        )
                     )
                     Text("إجراءات سريعة", modifier = Modifier.semantics { heading() })
                     CinematicAction.entries.forEach { action ->
