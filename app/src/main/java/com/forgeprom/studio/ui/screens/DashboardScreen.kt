@@ -1,5 +1,11 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ScreenHeading
+import com.forgeprom.studio.ui.components.ScreenNotice
+import com.forgeprom.studio.ui.components.observeScreenData
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +18,6 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,14 +41,16 @@ fun DashboardScreen(
     onImage: () -> Unit,
     onAbout: () -> Unit
 ) {
-    val activities by container.db.activityDao().recent(10).collectAsState(initial = emptyList())
+    var retry by remember { mutableStateOf(0) }
+    val source = remember(container) { container.db.activityDao().recent(10) }
+    val load by observeScreenData(source, retry)
     val fmt = SimpleDateFormat("d MMM yyyy، HH:mm", Locale.getDefault())
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Forgeprom Code Studio", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("Forgeprom Code Studio")
         Text(
             "حوّل فكرتك إلى موجه (برومبت) هندسي احترافي — جاهز للنسخ في منصات بناء الكود.",
             style = MaterialTheme.typography.bodyMedium,
@@ -65,12 +72,17 @@ fun DashboardScreen(
         QuickActionCard(
             icon = Icons.Filled.Create,
             title = "تحليل صورة واجهة",
-            subtitle = "سحابي اختياري عبر Gemini بموافقتك — للاستلهام فقط",
+            subtitle = "محلي دون اتصال أو عبر Gemini بموافقتك",
             onClick = onImage
         )
 
         SectionCard("آخر النشاطات") {
-            if (activities.isEmpty()) {
+            val current = load
+            val activities = current?.getOrNull()
+            if (activities == null) {
+                if (current == null) ScreenNotice("جارٍ تحميل النشاطات…", loading = true)
+                else ScreenNotice("تعذّر تحميل النشاطات.", action = "إعادة المحاولة") { retry++ }
+            } else if (activities.isEmpty()) {
                 Text("لا نشاطات بعد — ابدأ بإنشاء موجه جديد.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 activities.forEach { a ->

@@ -1,8 +1,9 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.ScreenHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -50,7 +51,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("إنشاء موجه جديد", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("إنشاء موجه جديد")
 
         OutlinedTextField(
             value = idea,
@@ -63,7 +64,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
         SectionCard("نوع الطلب") {
             Column {
                 GOALS.chunked(3).forEach { rowGoals ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionGroup {
                         rowGoals.forEach { g ->
                             FilterChip(selected = goal == g, onClick = { goal = g }, label = { Text(g) })
                         }
@@ -75,7 +76,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
         SectionCard("التقنية المستهدفة") {
             Column {
                 TECHS.chunked(3).forEach { rowTechs ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionGroup {
                         rowTechs.forEach { t ->
                             FilterChip(selected = tech == t, onClick = { tech = t }, label = { Text(t) })
                         }

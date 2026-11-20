@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.ScreenHeading
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -72,14 +74,14 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("تحليل صورة واجهة", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("تحليل صورة واجهة")
         Text(
             "استخرج وصفًا بصريًا أوليًا للاستلهام من صورة التصميم.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ActionGroup {
             FilterChip(selected = !cloudMode, enabled = !busy, onClick = {
                 cloudMode = false; result = null; error = null
             }, label = { Text("محلي دون اتصال") })

@@ -27,7 +27,12 @@ jobs:
           cache-disabled: true
 
       - name: Unit tests (domain layer)
-        run: gradle testDebugUnitTest --stacktrace
+        shell: bash
+        run: |
+          if ! gradle testDebugUnitTest --console=plain --stacktrace 2>&1 | tee android-test.log; then
+            while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^.* > .* FAILED|^Execution failed|^Caused by:' android-test.log | head -12)
+            exit 1
+          fi
 
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace

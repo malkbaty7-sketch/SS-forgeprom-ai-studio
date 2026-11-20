@@ -5,18 +5,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import com.forgeprom.studio.core.settings.ThemeMode
 
 private val LightColors = lightColorScheme(
     primary = PurplePrimary,
     secondary = RoyalBlue,
-    tertiary = Gold
+    tertiary = Color(0xFF745700),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White
 )
 
 private val DarkColors = darkColorScheme(
-    primary = PurpleLight,
-    secondary = RoyalBlue,
-    tertiary = Gold
+    primary = Color(0xFFD9BAFF),
+    onPrimary = Color(0xFF3D135F),
+    secondary = Color(0xFFBCC5FF),
+    onSecondary = Color(0xFF202A61),
+    tertiary = Color(0xFFF4CF72),
+    onTertiary = Color(0xFF3D2E00)
 )
 
 @Composable

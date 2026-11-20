@@ -1,5 +1,12 @@
 package com.forgeprom.studio.ui.screens
 
+import kotlinx.coroutines.CancellationException
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import com.forgeprom.studio.ui.components.ScreenNotice
+import com.forgeprom.studio.ui.components.observeScreenData
+import kotlinx.coroutines.flow.combine
+import com.forgeprom.studio.ui.components.ScreenHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,16 +24,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.util.Exporter
-import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,16 +42,39 @@ import java.util.Locale
  */
 @Composable
 fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: (Long) -> Unit) {
-    val project = remember(projectId) {
-        runBlocking { container.db.projectDao().byId(projectId) }
+    var attempt by remember(projectId) { mutableStateOf(0) }
+    val record by produceState<Result<com.forgeprom.studio.core.data.ProjectEntity?>?>(null, container, projectId, attempt) {
+        value = null
+        try {
+            value = Result.success(container.db.projectDao().byId(projectId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            value = Result.failure(e)
+        }
     }
-    val prompts by container.db.promptDao().forProject(projectId).collectAsState(initial = emptyList())
-    val analyses by container.db.analysisDao().forProject(projectId).collectAsState(initial = emptyList())
+    val loaded = record
+    if (loaded == null) {
+        ScreenNotice("جارٍ التحميل…", loading = true)
+        return
+    }
+    if (loaded.isFailure) {
+        ScreenNotice("تعذّر تحميل المشروع.", action = "إعادة المحاولة") { attempt++ }
+        return
+    }
+    val project = loaded.getOrNull()
+    val source = remember(container, projectId) {
+        container.db.promptDao().forProject(projectId).combine(container.db.analysisDao().forProject(projectId)) { prompts, analyses ->
+            prompts to analyses
+        }
+    }
+    var retryContents by remember(projectId) { mutableStateOf(0) }
+    val contents by observeScreenData(source, retryContents)
     val context = LocalContext.current
     val fmt = SimpleDateFormat("d MMM yyyy، HH:mm", Locale.getDefault())
 
     if (project == null) {
-        Text("المشروع غير موجود", Modifier.padding(16.dp))
+        ScreenNotice("المشروع غير موجود أو حُذف.")
         return
     }
 
@@ -55,7 +84,7 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(project.name, style = MaterialTheme.typography.headlineSmall)
+                ScreenHeading(project.name)
                 if (project.description.isNotBlank())
                     Text(project.description, style = MaterialTheme.typography.bodyMedium)
                 Text(
@@ -66,13 +95,24 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
             }
         }
 
+        val current = contents
+        val lists = current?.getOrNull()
+        if (lists == null) {
+            item {
+                if (current == null) ScreenNotice("جارٍ تحميل محتويات المشروع…", loading = true)
+                else ScreenNotice("تعذّر تحميل محتويات المشروع.", action = "إعادة المحاولة") { retryContents++ }
+            }
+            return@LazyColumn
+        }
+        val (prompts, analyses) = lists
+
         item { Text("الموجهات (" + prompts.size + ")", style = MaterialTheme.typography.titleMedium) }
         if (prompts.isEmpty()) {
             item {
-                Text("لا موجات في هذا المشروع بعد.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("لا موجّهات في هذا المشروع بعد.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        items(prompts, key = { it.id }) { p ->
+        items(prompts, key = { "prompt-${it.id}" }) { p ->
             Card(onClick = { onOpenEditor(p.id) }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
@@ -105,7 +145,7 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
 
         if (analyses.isNotEmpty()) {
             item { Text("التحليلات (" + analyses.size + ")", style = MaterialTheme.typography.titleMedium) }
-            items(analyses, key = { it.id }) { a ->
+            items(analyses, key = { "analysis-${it.id}" }) { a ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         Text(a.summary.take(100), style = MaterialTheme.typography.bodyMedium)

@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ScreenHeading
+import com.forgeprom.studio.ui.components.ScreenNotice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,7 +37,11 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
-    val draft = container.session.draft ?: return
+    val draft = container.session.draft
+    if (draft == null) {
+        ScreenNotice("لا توجد فكرة للتحليل. ارجع إلى شاشة التوليد وأدخل فكرة جديدة.")
+        return
+    }
     var summary by remember { mutableStateOf(draft.summary) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
@@ -46,7 +52,7 @@ fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("تحليل الفكرة", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("تحليل الفكرة")
         Text(
             "النية المكتشفة: " + draft.intent,
             style = MaterialTheme.typography.titleSmall,

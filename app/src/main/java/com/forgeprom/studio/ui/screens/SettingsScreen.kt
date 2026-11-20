@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.ScreenHeading
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -27,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.registry.FeatureRegistry
@@ -50,6 +55,7 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
     var geminiKey by remember { mutableStateOf("") }
     var openAiKey by remember { mutableStateOf("") }
     var baseUrl by remember { mutableStateOf(container.apiKeys.openAiBaseUrl()) }
+    var billingRevision by remember { mutableStateOf(0) }
     var model by remember { mutableStateOf(container.apiKeys.openAiModel()) }
 
     LaunchedEffect(Unit) {
@@ -61,12 +67,12 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("الإعدادات", style = MaterialTheme.typography.headlineSmall)
+        ScreenHeading("الإعدادات")
 
-        GatewayInvoices(container)
+        key(settings.cloudConsent, billingRevision) { GatewayInvoices(container, settings.cloudConsent) }
 
         SectionCard("المظهر") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionGroup {
                 listOf(
                     ThemeMode.SYSTEM to "تلقائي",
                     ThemeMode.LIGHT to "فاتح",
@@ -82,7 +88,7 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
         }
 
         SectionCard("لغة البرومبت الناتج") {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ActionGroup {
                 listOf(
                     PromptLanguage.AR to "عربي",
                     PromptLanguage.EN to "English",
@@ -109,6 +115,7 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
                 }
                 Switch(
                     checked = settings.cloudConsent,
+                    modifier = Modifier.semantics { contentDescription = "السماح بإرسال المحتوى إلى الخدمات السحابية" },
                     onCheckedChange = { scope.launch { container.settings.setCloudConsent(it) } }
                 )
             }
@@ -146,6 +153,7 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
                 container.apiKeys.setOpenAiModel(model.trim())
                 geminiKey = ""
                 openAiKey = ""
+                billingRevision++
                 Toast.makeText(context, "تم الحفظ المشفر", Toast.LENGTH_SHORT).show()
             }) { Text("حفظ") }
             Text(

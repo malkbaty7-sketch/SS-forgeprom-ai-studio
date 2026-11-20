@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ScreenNotice
+import com.forgeprom.studio.ui.components.ActionGroup
 import android.widget.Toast
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,30 +41,46 @@ import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.util.Exporter
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /**
  * R3 — المحرر: تحرير موجه محفوظ مع عدادات وحفظ ونسخ وتصدير.
  */
 @Composable
 fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
-    val prompt = remember(promptId) {
-        runBlocking { container.db.promptDao().byId(promptId) }
+    var attempt by remember(promptId) { mutableStateOf(0) }
+    val record by produceState<Result<com.forgeprom.studio.core.data.PromptEntity?>?>(null, container, promptId, attempt) {
+        value = null
+        try {
+            value = Result.success(container.db.promptDao().byId(promptId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            value = Result.failure(e)
+        }
     }
+    val loaded = record
+    if (loaded == null) {
+        ScreenNotice("جارٍ التحميل…", loading = true)
+        return
+    }
+    if (loaded.isFailure) {
+        ScreenNotice("تعذّر تحميل الموجّه.", action = "إعادة المحاولة") { attempt++ }
+        return
+    }
+    val prompt = loaded.getOrNull()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     if (prompt == null) {
-        Column(Modifier.fillMaxSize().padding(16.dp)) {
-            Text("الموجه غير موجود", style = MaterialTheme.typography.titleMedium)
-            OutlinedButton(onClick = onDone) { Text("رجوع") }
-        }
+        ScreenNotice("الموجّه غير موجود أو حُذف.", action = "رجوع", onAction = onDone)
         return
     }
 
     var title by remember { mutableStateOf(prompt.title) }
     var field by remember(promptId) { mutableStateOf(TextFieldValue(prompt.content)) }
     var undo by remember(promptId) { mutableStateOf<TextFieldValue?>(null) }
+    var saving by remember(promptId) { mutableStateOf(false) }
+    var saveError by remember(promptId) { mutableStateOf(false) }
     val content = field.text
     var edit by remember(promptId) { mutableStateOf<CinematicEdit?>(null) }
 
@@ -97,12 +116,14 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     ) {
         OutlinedTextField(
             value = title,
+            enabled = !saving,
             onValueChange = { title = it },
             label = { Text("عنوان الموجه") },
             modifier = Modifier.fillMaxWidth()
         )
         OutlinedTextField(
             value = field,
+            enabled = !saving,
             onValueChange = { if (it.text != field.text) undo = null; field = it },
             label = { Text("نص الموجه") },
             minLines = 6,
@@ -127,15 +148,26 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = {
+        if (saving) ScreenNotice("جارٍ حفظ الموجّه…", loading = true)
+        if (saveError) ScreenNotice("تعذّر حفظ الموجّه. لم تُفقد تعديلاتك؛ اضغط حفظ لإعادة المحاولة.")
+        ActionGroup {
+            Button(enabled = !saving && title.isNotBlank() && content.isNotBlank(), onClick = {
+                saving = true
+                saveError = false
+                val updated = prompt.copy(title = title.trim(), content = content, updatedAt = System.currentTimeMillis())
                 scope.launch {
-                    container.db.promptDao().update(
-                        prompt.copy(title = title, content = content, updatedAt = System.currentTimeMillis())
-                    )
-                    container.logActivity("editor", "تعديل موجه: " + title)
-                    Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
-                    onDone()
+                    try {
+                        container.db.promptDao().update(updated)
+                        container.logActivity("editor", "تعديل موجه: " + updated.title)
+                        Toast.makeText(context, "تم الحفظ", Toast.LENGTH_SHORT).show()
+                        onDone()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        saveError = true
+                    } finally {
+                        saving = false
+                    }
                 }
             }) { Text("حفظ") }
             OutlinedButton(onClick = {

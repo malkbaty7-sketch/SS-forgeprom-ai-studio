@@ -1,9 +1,10 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.ScreenNotice
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,7 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +34,8 @@ import com.forgeprom.studio.core.util.Exporter
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import androidx.room.withTransaction
 
 /**
  * R9/R10 — شاشة النتيجة: 6 تبويبات + نسخ/تصدير/حفظ في مشروع.
@@ -40,8 +43,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
     val session = container.session
-    if (session.promptText.isBlank() || session.draft == null) return
-    val draft = session.draft!!
+    val draft = session.draft
+    if (session.promptText.isBlank() || draft == null) {
+        ScreenNotice("لا توجد نتيجة لعرضها. ارجع إلى التوليد وأنشئ موجّهًا جديدًا.")
+        return
+    }
     val report = session.report
     val critique = session.critique
     val context = LocalContext.current
@@ -51,10 +57,13 @@ fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
     var promptText by remember { mutableStateOf(session.promptText) }
     var projectName by remember { mutableStateOf("") }
 
+    var saving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf(false) }
+
     val tabs = listOf("البرومبت", "ملخص الفهم", "النقد", "الافتراضات", "الجودة", "الحفظ والتصدير")
 
     Column(Modifier.fillMaxSize()) {
-        TabRow(selectedTabIndex = tab) {
+        ScrollableTabRow(selectedTabIndex = tab, edgePadding = 12.dp) {
             tabs.forEachIndexed { i, title ->
                 Tab(selected = tab == i, onClick = { tab = i }, text = { Text(title, maxLines = 1) })
             }
@@ -72,7 +81,7 @@ fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
                         minLines = 12,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionGroup {
                         OutlinedButton(onClick = {
                             if (Exporter.copyToClipboard(context, promptText))
                                 Toast.makeText(context, "تم النسخ إلى الحافظة", Toast.LENGTH_SHORT).show()
@@ -124,35 +133,44 @@ fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
                         label = { Text("اسم مشروع لحفظ الموجه فيه (اتركه فارغاً لإنشاء تلقائي)") },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (saving) ScreenNotice("جارٍ الحفظ في المشروع…", loading = true)
+                    if (saveError) ScreenNotice("تعذّر الحفظ. أعد المحاولة من زر الحفظ؛ سيبقى النص كما هو.")
                     Button(
+                        enabled = !saving && promptText.isNotBlank(),
                         onClick = {
+                            saving = true
+                            saveError = false
+                            val name = projectName.trim().ifBlank { "موجه — " + draft.summary.take(30) }
+                            val content = promptText
                             scope.launch {
-                                val name = projectName.ifBlank {
-                                    "موجه — " + draft.summary.take(30)
+                                try {
+                                    val projectId = container.db.withTransaction {
+                                        val id = container.db.projectDao().insert(
+                                            ProjectEntity(name = name, description = draft.summary, kind = "prompt")
+                                        )
+                                        container.db.promptDao().insert(PromptEntity(
+                                            projectId = id, title = draft.summary.take(50), content = content,
+                                            goal = session.goal, tech = session.tech,
+                                            qualityScore = report?.score ?: 0, isImageInspired = session.isImageInspired
+                                        ))
+                                        id
+                                    }
+                                    container.logActivity("save", "حفظ موجه في مشروع: " + name)
+                                    Toast.makeText(context, "تم الحفظ في المشروع", Toast.LENGTH_SHORT).show()
+                                    onSaved(projectId)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    saveError = true
+                                } finally {
+                                    saving = false
                                 }
-                                val projectId = container.db.projectDao().insert(
-                                    ProjectEntity(name = name, description = draft.summary, kind = "prompt")
-                                )
-                                container.db.promptDao().insert(
-                                    PromptEntity(
-                                        projectId = projectId,
-                                        title = draft.summary.take(50),
-                                        content = promptText,
-                                        goal = session.goal,
-                                        tech = session.tech,
-                                        qualityScore = report?.score ?: 0,
-                                        isImageInspired = session.isImageInspired
-                                    )
-                                )
-                                container.logActivity("save", "حفظ موجه في مشروع: " + name)
-                                Toast.makeText(context, "تم الحفظ في المشروع", Toast.LENGTH_SHORT).show()
-                                onSaved(projectId)
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("حفظ في مشروع جديد") }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionGroup {
                         OutlinedButton(onClick = { export(context, container, promptText, "md") }) { Text("Markdown") }
                         OutlinedButton(onClick = { export(context, container, promptText, "txt") }) { Text("TXT") }
                         OutlinedButton(onClick = { export(context, container, promptText, "json") }) { Text("JSON") }
@@ -185,7 +203,10 @@ private fun Section(title: String, text: String) {
 }
 
 private fun export(context: android.content.Context, container: AppContainer, promptText: String, ext: String) {
-    val draft = container.session.draft ?: return
+    val draft = container.session.draft ?: run {
+        Toast.makeText(context, "لا توجد نتيجة للتصدير.", Toast.LENGTH_SHORT).show()
+        return
+    }
     val draftJson = JSONObject()
         .put("intent", draft.intent)
         .put("summary", draft.summary)

@@ -3,4 +3,19 @@
     <string name="app_name">Forgeprom Code Studio</string>
     <string name="app_name_ar">فورج برومبت — استوديو البرومبتات</string>
     <string name="about_body">استوديو عربي لتحويل أفكار التطبيقات إلى موجهات (برومبتات) هندسية احترافية، بمحرك محلي يعمل دون إنترنت ومحركات سحابية اختيارية بموافقتك الصريحة.</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_delete">حذف</string>
+    <string name="projects_empty">لا مشاريع بعد. أنشئ مشروعًا الآن أو احفظ موجّهًا من شاشة النتيجة.</string>
+    <string name="project_new">مشروع جديد</string>
+    <string name="project_edit">تعديل المشروع</string>
+    <string name="project_delete">حذف المشروع</string>
+    <string name="project_delete_confirmation">هل تريد حذف «%1$s»؟ لا يمكن التراجع من هذه الشاشة.</string>
+    <string name="project_name">اسم المشروع</string>
+    <string name="project_name_required">الاسم مطلوب</string>
+    <string name="project_name_limit">الاسم يجب ألّا يتجاوز 120 حرفًا.</string>
+    <string name="project_description">وصف المشروع (اختياري)</string>
+    <string name="project_description_limit">الوصف يجب ألّا يتجاوز 2000 حرف.</string>
+    <string name="project_saving">جارٍ حفظ المشروع…</string>
+    <string name="project_create">إنشاء</string>
 </resources>

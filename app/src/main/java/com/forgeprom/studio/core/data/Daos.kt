@@ -26,6 +26,9 @@ interface ProjectDao {
     @Update
     suspend fun update(project: ProjectEntity)
 
+    @Query("UPDATE projects SET name = :name, description = :description, updatedAt = :now WHERE id = :id")
+    suspend fun updateDetails(id: Long, name: String, description: String, now: Long): Int
+
     @Query("UPDATE projects SET isPinned = :pinned, updatedAt = :now WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean, now: Long)
 
