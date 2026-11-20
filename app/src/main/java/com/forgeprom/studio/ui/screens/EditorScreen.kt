@@ -111,6 +111,12 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
     var showExitConfirm by remember(promptId) { mutableStateOf(false) }
     var savedSuccessfully by remember(promptId) { mutableStateOf(false) }
     var showVersions by remember(promptId) { mutableStateOf(false) }
+    var pendingScene by remember(promptId) { mutableStateOf(container.pendingScenes.resultFor(promptId)) }
+    var sceneJobs by remember(promptId) { mutableStateOf(container.pendingScenes.activeJobs(promptId)) }
+    fun refreshSceneJobs() {
+        pendingScene = container.pendingScenes.resultFor(promptId)
+        sceneJobs = container.pendingScenes.activeJobs(promptId)
+    }
     val versionDao = container.db.promptVersionDao()
     val versions by remember(promptId) { versionDao.recent(promptId) }
         .collectAsState(initial = emptyList<PromptVersionEntity>())
@@ -230,6 +236,45 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        pendingScene?.let { ready ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("مشهد جاهز من مهمة سابقة", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        ready.content.replace('\n', ' ').take(180),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2
+                    )
+                    ActionGroup {
+                        Button(onClick = {
+                            undo = field
+                            val updated = if (field.text.isBlank()) ready.content else field.text + "\n\n" + ready.content
+                            field = TextFieldValue(updated, TextRange(updated.length))
+                            container.pendingScenes.clearResult(promptId)
+                            refreshSceneJobs()
+                        }) { Text("إدراج في المحرر") }
+                        OutlinedButton(onClick = {
+                            container.pendingScenes.clearResult(promptId)
+                            refreshSceneJobs()
+                        }) { Text("تجاهل") }
+                    }
+                }
+            }
+        }
+        if (pendingScene == null && sceneJobs.isNotEmpty()) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("مهمة توليد مشهد قيد التنفيذ في الخلفية", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "ستُحفظ النتيجة محلياً عند اكتمالها. يمكنك متابعة التحرير أو إغلاق التطبيق.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedButton(onClick = { refreshSceneJobs() }) { Text("تحديث الحالة") }
+                }
+            }
+        }
         pendingDraft?.let { draft ->
             Card(Modifier.fillMaxWidth()) {
                 Column(

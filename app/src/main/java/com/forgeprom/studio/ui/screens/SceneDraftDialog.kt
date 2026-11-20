@@ -389,7 +389,7 @@ internal fun SceneDraftDialog(
                     }
                     Row {
                         Checkbox(queue, { queue = it }, enabled = !busy)
-                        Text("استخدام طابور Forgeprom عبر مزوّد متوافق مهيّأ للبوابة. قد يحتفظ الخادم بالمهمة بعد إغلاق النافذة.", Modifier.padding(top = 12.dp))
+                        Text("استخدام طابور Forgeprom عبر مزوّد متوافق مهيّأ للبوابة. تتابع المهمة في الخلفية بعد إغلاق التطبيق، وتُحفظ النتيجة محلياً عند اكتمالها.", Modifier.padding(top = 12.dp))
                     }
                     TextButton(enabled = !busy, onClick = { showIndex = !showIndex }) { Text("فهرس القصة على البوابة") }
                     if (showIndex) {
@@ -490,7 +490,8 @@ internal fun SceneDraftDialog(
             else Button(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
-                val request = SceneDraft.request(brief, outgoingNotes, direction, format).copy(useGatewayQueue = queue)
+                val request = SceneDraft.request(brief, outgoingNotes, direction, format)
+                            .copy(useGatewayQueue = queue, promptId = promptId)
                 scope.launch {
                     try {
                         val settings = container.settings.settings.first()

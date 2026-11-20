@@ -11,11 +11,12 @@ ui/          Compose screens + navigation (AppNavHost، 5 تبويبات)
 core/
   AppContainer    حقن يدوي: db + settings + apiKeys + engines + session
   ai/             AiEngine (واجهة) + LocalRulesEngine + GeminiEngine + OpenAiCompatEngine + AiEngineManager
-  data/           Room: 6 كيانات (Project, Prompt, Analysis, Activity, EditorFile, ImageAnalysis)
+  data/           Room v2: 7 كيانات (+ PromptVersion) مع ترحيل 1→2
   settings/       DataStore: ثيم، لغة الموجه، موافقة السحابة، محرك كل مهمة
   security/       ApiKeyStore — EncryptedSharedPreferences
   editor/         DraftStore + DraftCodec — مسودات محرر محلية قابلة للاسترداد
-  backup/         SimpleJson + BackupCodec + BackupRepository — تصدير/استعادة دمجية
+  backup/         SimpleJson + BackupCodec + BackupRepository + PromptFile — تصدير/استعادة وملف موجّه
+  jobs/           PendingSceneStore + SceneJobWorker + SceneNotifier — استئناف مهام الطابور في الخلفية
   registry/       FeatureRegistry — سجل ميزات صادق
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
 domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters، EndpointPolicy، UsageSummary، PromptTemplates — Kotlin نقي
