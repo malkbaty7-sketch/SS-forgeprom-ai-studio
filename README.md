@@ -24,6 +24,8 @@
 | تقدير رموز الطلب قبل الإرسال | ✅ جاهز — تقدير محلي تقريبي |
 | مشاركة واستيراد ملف `.forgeprom` | ✅ جاهز — عبر منتقي ملفات النظام |
 | استئناف مهام المشهد بعد إغلاق التطبيق | ✅ جاهز — WorkManager يستعلم ولا يعيد الإرسال |
+| بناء إصدار مصغّر (R8) وتوقيع اختياري | ✅ جاهز — APK غير موقّع بلا keystore |
+| اختبارات Compose على JVM | ✅ جاهز — مكوّن واحد مغطّى داخل CI |
 | تصدير TXT / MD / JSON + نسخ ومشاركة (UTF-8) | ✅ جاهز |
 | تحليل صور الواجهات | محلي محدود أو Gemini اختياري بموافقة |
 | محرك محلي قاعدي دون إنترنت | ✅ جاهز |
@@ -42,7 +44,7 @@ gradle assembleDebug     # أو افتح المشروع في Android Studio (JDK
 
 - متطلبات البناء: JDK 17، Gradle 8.9، AGP 8.5.2، Kotlin 2.0.20، compileSdk 35، minSdk 26.
 - الخرج: `app/build/outputs/apk/debug/app-debug.apk`.
-- الاختبارات: `gradle testDebugUnitTest` (اختبارات طبقة المجال + البحث/التصفية + ترميز المسودات والنسخ الاحتياطي).
+- الاختبارات: `gradle testDebugUnitTest` (طبقة المجال + البحث/التصفية + التراميز + تقدير الرموز + مكوّنات Compose عبر Robolectric).
 
 ## البناء التلقائي (CI)
 
@@ -174,3 +176,18 @@ print subtotal + 2
 لتشغيل التطبيق محليًا، افتح جذر المستودع في Android Studio، وثبّت **Android SDK 35**، واضبط Gradle على **JDK 17**، ثم نفّذ **Sync Project with Gradle Files** وشغّل الوحدة `app` على محاكي أو جهاز Android. من الطرفية، عند توفر Gradle 8.9 وجهاز متصل، شغّل `gradle installDebug`. لا يحتوي المستودع على مشغّل `gradlew`.
 
 في شاشة **المشاريع**، يفتح زر **جديد** نموذج الإنشاء، ويفتح زر **تعديل المشروع** النموذج نفسه مع البيانات الحالية. التعديل يحفظ الاسم والوصف فقط دون تغيير حالة التثبيت أو الأرشفة. يطلب زر **حذف المشروع** تأكيدًا قبل التنفيذ.
+
+### بناء الإصدار (Release)
+
+- `gradle assembleRelease` يفعّل R8 وتقليص الموارد، ويُخرج APK في `app/build/outputs/apk/release/`.
+- التوقيع: أنشئ `keystore.properties` في جذر المشروع (مستثنى من git):
+  ```properties
+  storeFile=/absolute/path/release.jks
+  storePassword=...
+  keyAlias=...
+  keyPassword=...
+  ```
+  أو مرّر `FORGEPROM_KEYSTORE` و`FORGEPROM_STORE_PASSWORD` و`FORGEPROM_KEY_ALIAS` و`FORGEPROM_KEY_PASSWORD` في البيئة (مفيد لـCI). غيابها ينتج APK غير موقّع دون إفشال البناء.
+- CI يبني الإصدار ويرفعه في كل PR، فتكسرات R8 تظهر مباشرة.
+- لا يوجد baseline profile مولّد على جهاز؛ نعتمد `profileinstaller` وملفات تعريف المكتبات. راجع [القيود](docs/CHANGELOG.md).
+

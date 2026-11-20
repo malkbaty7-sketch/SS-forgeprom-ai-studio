@@ -17,6 +17,7 @@ core/
   editor/         DraftStore + DraftCodec — مسودات محرر محلية قابلة للاسترداد
   backup/         SimpleJson + BackupCodec + BackupRepository + PromptFile — تصدير/استعادة وملف موجّه
   jobs/           PendingSceneStore + SceneJobWorker + SceneNotifier — استئناف مهام الطابور في الخلفية
+  ../ui/components/  مكوّنات واجهة قابلة للاختبار (TokenEstimateCard)
   registry/       FeatureRegistry — سجل ميزات صادق
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
 domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters، EndpointPolicy، UsageSummary، PromptTemplates — Kotlin نقي
@@ -52,3 +53,9 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 - اختبارات JUnit4 لطبقة المجال (`app/src/test/...`) — تشمل الآن البحث العربي والتصفية وترميز المسودات والنسخ الاحتياطي.
 - GitHub Actions: `testDebugUnitTest` ثم `assembleDebug` ثم رفع APK كـ artifact.
 - سير عمل مستقل للبوابة (`gateway.yml`): `npm test` ثم بناء صورة Docker، عند تغيير `services/ai-gateway`.
+
+## بناء الإصدار
+
+- `assembleRelease` يفعّل R8 وتقليص الموارد. القواعد في `app/proguard-rules.pro`.
+- التوقيع من `keystore.properties` (خارج git) أو متغيرات `FORGEPROM_*`، وبدونهما يخرج APK غير موقّع.
+- اختبارات Compose تعمل على JVM عبر Robolectric؛ النشاط الفارغ معلن في `app/src/debug/AndroidManifest.xml` فقط.
