@@ -1,6 +1,10 @@
 package com.forgeprom.studio.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.forgeprom.studio.core.util.EpubExcerpt
+import com.forgeprom.studio.core.util.PdfExcerpt
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.util.Exporter
+import com.forgeprom.studio.domain.StoryAnalysis
+import com.forgeprom.studio.domain.StoryContext
+import com.forgeprom.studio.domain.SemanticContext
 import com.forgeprom.studio.domain.SceneDraft
 import com.forgeprom.studio.domain.SceneFormat
 import com.forgeprom.studio.domain.SceneDirection
@@ -41,10 +48,44 @@ internal fun SceneDraftDialog(
     var notes by remember(key) { mutableStateOf(preferences.getString(key, "").orEmpty()) }
     var brief by remember { mutableStateOf("") }
     var includeNotes by remember { mutableStateOf(false) }
+    var relevantOnly by remember { mutableStateOf(false) }
+    val relevantNotes = remember(brief, notes) { StoryContext.retrieve(brief, notes) }
+    var semantic by remember(brief, notes) { mutableStateOf<String?>(null) }
+    val outgoingNotes = if (!includeNotes) "" else semantic ?: if (relevantOnly) relevantNotes else notes
+    var analysis by remember { mutableStateOf<String?>(null) }
     var scene by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    fun importExcerpt(uri: android.net.Uri?, pdf: Boolean) {
+        if (uri != null) {
+            busy = true
+            scope.launch {
+                try {
+                    val excerpt = withContext(Dispatchers.IO) {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            if (pdf) PdfExcerpt.read(context, input, SceneDraft.NOTES_LIMIT)
+                            else EpubExcerpt.read(input, SceneDraft.NOTES_LIMIT)
+                        }.orEmpty()
+                    }
+                    if (excerpt.isBlank()) message = "لم يُعثر على نص قابل للقراءة في الملف؛ لا يدعم الاستيراد الصور الممسوحة ضوئياً."
+                    else {
+                        notes = excerpt
+                        includeNotes = false
+                        message = "استُبدل حقل الملاحظات بمقتطف من الملف. راجع النص قبل حفظه أو إرساله."
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    message = "تعذّرت قراءة الملف. يدعم PDF النصي غير المشفّر حتى 8 ميبيبايت."
+                } finally {
+                    busy = false
+                }
+            }
+        }
+    }
+    val epubPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importExcerpt(it, false) }
+    val pdfPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importExcerpt(it, true) }
     var direction by remember { mutableStateOf(SceneDirection()) }
     val historyKey = "history_$promptId"
     var history by remember(historyKey) {
@@ -52,6 +93,12 @@ internal fun SceneDraftDialog(
             val stored = JSONArray(preferences.getString(historyKey, "[]") ?: "[]")
             List(minOf(stored.length(), 5)) { stored.getString(it) }
         }.getOrDefault(emptyList()))
+    }
+    var autoSave by remember { mutableStateOf(preferences.getBoolean("autosave_$promptId", true)) }
+    var comparison by remember(scene) { mutableStateOf<String?>(null) }
+    fun saveVersion(text: String) {
+        history = (listOf(text) + history.filterNot { it == text }).take(5)
+        preferences.edit().putString(historyKey, JSONArray(history).toString()).apply()
     }
     var format by remember { mutableStateOf(SceneFormat.SCREENPLAY) }
     val draft = scene
@@ -88,6 +135,12 @@ internal fun SceneDraftDialog(
                         onClick = { direction = direction.copy(sound = !direction.sound) }, label = { Text("تصميم الصوت") })
                     OutlinedTextField(notes, { notes = it.take(SceneDraft.NOTES_LIMIT) }, enabled = !busy,
                         label = { Text("ذاكرة القصة لهذا الموجّه") }, modifier = Modifier.fillMaxWidth())
+                    OutlinedButton(enabled = !busy, onClick = { epubPicker.launch(arrayOf("application/epub+zip")) }) {
+                        Text("استيراد مقتطف EPUB إلى الملاحظات")
+                    }
+                    OutlinedButton(enabled = !busy, onClick = { pdfPicker.launch(arrayOf("application/pdf")) }) {
+                        Text("استيراد مقتطف PDF إلى الملاحظات")
+                    }
                     TextButton(enabled = !busy, onClick = {
                         val editor = preferences.edit()
                         if (notes.isBlank()) editor.remove(key) else editor.putString(key, notes)
@@ -98,7 +151,52 @@ internal fun SceneDraftDialog(
                         Checkbox(includeNotes, { includeNotes = it }, enabled = !busy)
                         Text("إرسال الملاحظات المعروضة مع الطلب", Modifier.padding(top = 12.dp))
                     }
+                    if (includeNotes) {
+                        Row {
+                            Checkbox(relevantOnly, { relevantOnly = it; semantic = null }, enabled = !busy)
+                            Text("إرسال المقتطفات المطابقة فقط", Modifier.padding(top = 12.dp))
+                        }
+                        if (semantic == null && relevantOnly) Text(relevantNotes.ifBlank { "لا توجد مطابقة؛ لن تُرسل ملاحظات مع هذا المشهد." })
+                        OutlinedButton(enabled = !busy && brief.isNotBlank() && notes.isNotBlank(), onClick = {
+                            busy = true
+                            message = ""
+                            val candidates = SemanticContext.passages(notes)
+                            val request = SemanticContext.request(brief, candidates)
+                            scope.launch {
+                                try {
+                                    val settings = container.engines.cloudGate().getOrNull()
+                                    if (settings == null) {
+                                        message = "فعّل الموافقة السحابية من الإعدادات أولاً."
+                                        return@launch
+                                    }
+                                    val engine = container.engines.engineById(settings.engineGeneral)
+                                    if (engine.isLocal || !engine.status(settings).isReady) {
+                                        message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
+                                        return@launch
+                                    }
+                                    semantic = SemanticContext.select(engine.generate(request).getOrThrow(), candidates)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    message = "تعذّر انتقاء السياق الدلالي. لم يُغيّر خيار الإرفاق الحالي."
+                                } finally {
+                                    busy = false
+                                }
+                            }
+                        }) { Text("إرسال الوصف والملاحظات للانتقاء الدلالي") }
+                        semantic?.let { selected ->
+                            Text(selected.ifBlank { "لم يجد النموذج مقتطفات مناسبة؛ لن تُرفق ملاحظات عند التوليد." })
+                            TextButton(enabled = !busy, onClick = { semantic = null }) { Text("إلغاء الانتقاء الدلالي") }
+                        }
+                    }
                     Text("يُرسل وصف المشهد للمزوّد السحابي. لا يُرسل نص المحرّر. تُرسل الملاحظات فقط عند اختيار إرفاقها.")
+                    Row {
+                        Checkbox(autoSave, { checked ->
+                            autoSave = checked
+                            preferences.edit().putBoolean("autosave_$promptId", checked).apply()
+                        }, enabled = !busy)
+                        Text("حفظ المسودات المولّدة تلقائياً على الجهاز", Modifier.padding(top = 12.dp))
+                    }
                     if (history.isNotEmpty()) {
                         Text("آخر المسودات المحفوظة", style = MaterialTheme.typography.titleSmall)
                         history.forEachIndexed { index, saved ->
@@ -111,14 +209,62 @@ internal fun SceneDraftDialog(
                             preferences.edit().remove(historyKey).apply()
                         }) { Text("مسح سجل المسودات") }
                     }
+                    OutlinedButton(enabled = !busy && notes.isNotBlank(), onClick = {
+                        busy = true
+                        message = ""
+                        analysis = null
+                        val request = StoryAnalysis.request(notes)
+                        scope.launch {
+                            try {
+                                val settings = container.engines.cloudGate().getOrNull()
+                                if (settings == null) {
+                                    message = "فعّل الموافقة السحابية من الإعدادات أولاً."
+                                    return@launch
+                                }
+                                val engine = container.engines.engineById(settings.engineGeneral)
+                                if (engine.isLocal || !engine.status(settings).isReady) {
+                                    message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
+                                    return@launch
+                                }
+                                analysis = StoryAnalysis.review(engine.generate(request).getOrThrow())
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                message = "تعذّر استخراج الشخصيات والأحداث. راجع إعدادات المزوّد وأعد المحاولة."
+                            } finally {
+                                busy = false
+                            }
+                        }
+                    }) { Text("إرسال الملاحظات لاستخراج الشخصيات والأحداث") }
+                    analysis?.let { proposed ->
+                        Text("اقتراح قابل للمراجعة؛ لم تُعدّل ملاحظاتك بعد.")
+                        OutlinedTextField(proposed, { analysis = it.take(SceneDraft.NOTES_LIMIT) },
+                            label = { Text("الشخصيات والأحداث المقترحة") }, modifier = Modifier.fillMaxWidth())
+                        TextButton(enabled = proposed.isNotBlank(), onClick = {
+                            notes = proposed
+                            includeNotes = false
+                            analysis = null
+                        }) { Text("استبدال الملاحظات بالاقتراح") }
+                        TextButton(onClick = { analysis = null }) { Text("تجاهل الاقتراح") }
+                    }
                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (message.isNotEmpty()) Text(message)
                 } else {
+                    comparison?.let { older ->
+                        Text("النسخة المرجعية", style = MaterialTheme.typography.titleSmall)
+                        Text(older)
+                        HorizontalDivider()
+                        Text("المسودة المعروضة", style = MaterialTheme.typography.titleSmall)
+                    }
                     Text(draft)
-                    TextButton(enabled = !busy && draft !in history, onClick = {
-                        history = (listOf(draft) + history).take(5)
-                        preferences.edit().putString(historyKey, JSONArray(history).toString()).apply()
-                    }) { Text(if (draft in history) "محفوظة محلياً" else "حفظ نسخة في سجل المسودات") }
+                    val alternatives = history.filterNot { it == draft }
+                    if (alternatives.isNotEmpty()) {
+                        SceneChoices("المقارنة مع", listOf<String?>(null) + alternatives, comparison, !busy,
+                            { entry -> entry?.lineSequence()?.first()?.take(55) ?: "بدون مقارنة" }) { comparison = it }
+                    }
+                    TextButton(enabled = !busy && draft !in history, onClick = { saveVersion(draft) }) {
+                        Text(if (draft in history) "محفوظة محلياً" else "حفظ نسخة في سجل المسودات")
+                    }
                     if (screenplay) {
                         OutlinedButton(onClick = {
                             Exporter.export(context, title, draft, "fountain")
@@ -162,7 +308,7 @@ internal fun SceneDraftDialog(
             else Button(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
-                val request = SceneDraft.request(brief, if (includeNotes) notes else "", direction, format)
+                val request = SceneDraft.request(brief, outgoingNotes, direction, format)
                 scope.launch {
                     try {
                         val settings = container.engines.cloudGate().getOrNull()
@@ -175,7 +321,9 @@ internal fun SceneDraftDialog(
                             message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
                             return@launch
                         }
-                        scene = SceneDraft.validate(engine.generate(request).getOrThrow(), request.sceneFormat)
+                        val generated = SceneDraft.validate(engine.generate(request).getOrThrow(), request.sceneFormat)
+                        if (autoSave) saveVersion(generated)
+                        scene = generated
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
