@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.util.Exporter
 import com.forgeprom.studio.domain.SceneDraft
+import com.forgeprom.studio.domain.SceneFormat
 import com.forgeprom.studio.domain.SceneDirection
 import com.forgeprom.studio.domain.SceneTone
 import com.forgeprom.studio.domain.SceneStyle
@@ -52,7 +53,9 @@ internal fun SceneDraftDialog(
             List(minOf(stored.length(), 5)) { stored.getString(it) }
         }.getOrDefault(emptyList()))
     }
+    var format by remember { mutableStateOf(SceneFormat.SCREENPLAY) }
     val draft = scene
+    val screenplay = draft != null && runCatching { SceneDraft.validate(draft) }.isSuccess
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -70,6 +73,7 @@ internal fun SceneDraftDialog(
                         FilterChip(selected = direction.tone == tone, enabled = !busy,
                             onClick = { direction = direction.copy(tone = tone) }, label = { Text(tone.label) })
                     }
+                    SceneChoices("صيغة المشهد", SceneFormat.entries, format, !busy, { it.label }) { format = it }
                     SceneChoices("أسلوب الإخراج", SceneStyle.entries, direction.style, !busy, { it.label }) {
                         direction = direction.copy(style = it)
                     }
@@ -115,16 +119,24 @@ internal fun SceneDraftDialog(
                         history = (listOf(draft) + history).take(5)
                         preferences.edit().putString(historyKey, JSONArray(history).toString()).apply()
                     }) { Text(if (draft in history) "محفوظة محلياً" else "حفظ نسخة في سجل المسودات") }
-                    OutlinedButton(onClick = {
-                        Exporter.export(context, title, draft, "fountain")
-                            .onSuccess { Exporter.share(context, it, "text/plain", "مشاركة المشهد") }
-                            .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
-                    }) { Text("تصدير Fountain") }
-                    OutlinedButton(onClick = {
-                        Exporter.export(context, title, FinalDraftExport.render(draft), "fdx")
-                            .onSuccess { Exporter.share(context, it, "application/xml", "مشاركة مشهد Final Draft") }
-                            .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
-                    }) { Text("تصدير Final Draft (FDX)") }
+                    if (screenplay) {
+                        OutlinedButton(onClick = {
+                            Exporter.export(context, title, draft, "fountain")
+                                .onSuccess { Exporter.share(context, it, "text/plain", "مشاركة المشهد") }
+                                .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
+                        }) { Text("تصدير Fountain") }
+                        OutlinedButton(onClick = {
+                            Exporter.export(context, title, FinalDraftExport.render(draft), "fdx")
+                                .onSuccess { Exporter.share(context, it, "application/xml", "مشاركة مشهد Final Draft") }
+                                .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
+                        }) { Text("تصدير Final Draft (FDX)") }
+                    } else {
+                        OutlinedButton(onClick = {
+                            Exporter.export(context, title, draft, "txt")
+                                .onSuccess { Exporter.share(context, it, "text/plain", "مشاركة المشهد") }
+                                .onFailure { Toast.makeText(context, "فشل التصدير", Toast.LENGTH_SHORT).show() }
+                        }) { Text("تصدير TXT") }
+                    }
                     OutlinedButton(enabled = !busy, onClick = {
                         busy = true
                         scope.launch {
@@ -150,7 +162,7 @@ internal fun SceneDraftDialog(
             else Button(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
-                val request = SceneDraft.request(brief, if (includeNotes) notes else "", direction)
+                val request = SceneDraft.request(brief, if (includeNotes) notes else "", direction, format)
                 scope.launch {
                     try {
                         val settings = container.engines.cloudGate().getOrNull()
@@ -163,11 +175,11 @@ internal fun SceneDraftDialog(
                             message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
                             return@launch
                         }
-                        scene = SceneDraft.validate(engine.generate(request).getOrThrow())
+                        scene = SceneDraft.validate(engine.generate(request).getOrThrow(), request.sceneFormat)
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
-                        message = "تعذّر توليد مسودة Fountain صالحة. يمكنك إعادة المحاولة دون فقدان الوصف."
+                        message = "تعذّر توليد مسودة بالصيغة المختارة. يمكنك إعادة المحاولة دون فقدان الوصف."
                     } finally {
                         busy = false
                     }

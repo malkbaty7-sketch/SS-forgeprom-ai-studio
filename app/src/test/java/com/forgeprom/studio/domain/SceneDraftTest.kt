@@ -28,6 +28,16 @@ class SceneDraftTest {
         assertTrue(instruction.contains("Add brief performance cues"))
     }
 
+    @Test fun selectsFormatSpecificInstructionsAndValidation() {
+        val request = SceneDraft.request("مشهد", format = SceneFormat.SHOTS)
+        assertTrue(request.cinematicSystem.orEmpty().contains(SceneFormat.SHOTS.rules))
+        val shots = "1. لقطة واسعة\n2. لقطة قريبة"
+        assertEquals(shots, SceneDraft.validate(shots, SceneFormat.SHOTS))
+        assertTrue(runCatching { SceneDraft.validate(shots) }.isFailure)
+        val prose = "تتسلل أشعة الشمس إلى الممر."
+        assertEquals(prose, SceneDraft.validate(prose, SceneFormat.PROSE))
+    }
+
     @Test fun acceptsArabicForcedHeading() {
         val draft = ".المحطة - ليلاً\n\nتتوقف سلمى عند الرصيف.\n\n@سلمى\nهل تأخر القطار؟"
         assertEquals(draft, SceneDraft.validate(draft))
