@@ -3,6 +3,9 @@ package com.forgeprom.studio.core.ai
 import com.forgeprom.studio.core.security.ApiKeyStore
 import com.forgeprom.studio.core.settings.AppSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import android.os.SystemClock
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -24,6 +27,13 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
+        .build()
+
+    private val jobsClient = client.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .retryOnConnectionFailure(false)
+        .callTimeout(10, TimeUnit.SECONDS)
         .build()
 
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()
@@ -63,6 +73,7 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
                 val body = JSONObject()
                     .put("model", apiKeyStore.openAiModel())
                     .put("messages", messages)
+                if (request.useGatewayQueue) return@runCatching queuedResult(key, body)
                 val url = apiKeyStore.openAiBaseUrl().trimEnd('/') + "/chat/completions"
                 val httpRequest = Request.Builder()
                     .url(url)
@@ -79,6 +90,59 @@ class OpenAiCompatEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
                         .getString("content")
                 }
             }
+        }
+
+    private suspend fun queuedResult(key: String, payload: JSONObject): String {
+        val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+        require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+            base.query == null && base.fragment == null) { "يلزم عنوان HTTPS للبوابة" }
+        val jobs = base.newBuilder().addPathSegment("jobs").build()
+        val submit = Request.Builder().url(jobs).header("Authorization", "Bearer $key")
+            .post(payload.toString().toRequestBody(jsonMedia)).build()
+        val id = jobsClient.newCall(submit).execute().use { response ->
+            require(response.code == 202) { "تعذر إرسال المهمة (HTTP ${response.code})" }
+            JSONObject(response.body?.string().orEmpty()).getString("id")
+        }
+        require(id.matches(Regex("[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}")))
+        val status = Request.Builder().url(jobs.newBuilder().addPathSegment(id).build())
+            .header("Authorization", "Bearer $key").build()
+        val deadline = SystemClock.elapsedRealtime() + 120_000
+        while (SystemClock.elapsedRealtime() < deadline) {
+            delay(2000)
+            val data = jobsClient.newCall(status).execute().use { response ->
+                require(response.isSuccessful) { "تعذر الاستعلام عن المهمة (HTTP ${response.code})" }
+                JSONObject(response.body?.string().orEmpty())
+            }
+            when (data.getString("status")) {
+                "done" -> return data.getJSONObject("result").getJSONArray("choices")
+                    .getJSONObject(0).getJSONObject("message").getString("content")
+                "queued", "running" -> Unit
+                else -> error("لم تنجح مهمة التوليد")
+            }
+        }
+        error("انتهت مهلة متابعة المهمة؛ قد يستمر التنفيذ على الخادم")
+    }
+
+    suspend fun storyIndex(book: String, action: String, body: JSONObject? = null): JSONObject =
+        withContext(Dispatchers.IO) {
+            val base = apiKeyStore.openAiBaseUrl().trimEnd('/').toHttpUrl()
+            require(base.isHttps && base.username.isEmpty() && base.password.isEmpty() &&
+                base.query == null && base.fragment == null)
+            val path = base.newBuilder().addPathSegment("story").addPathSegment(book)
+            val key = apiKeyStore.openAiKey()
+            require(key.isNotBlank())
+            val request = Request.Builder().header("Authorization", "Bearer $key")
+            when (action) {
+                "chapters", "search" -> request.url(path.addPathSegment(action).build())
+                    .post(requireNotNull(body).toString().toRequestBody(jsonMedia))
+                "delete" -> request.url(path.build()).delete()
+                else -> error("Unknown story action")
+            }
+            jobsClient.newBuilder().callTimeout(45, TimeUnit.SECONDS).build()
+                .newCall(request.build()).execute().use { response ->
+                    require(response.isSuccessful) { "HTTP ${response.code}" }
+                    JSONObject(response.body?.string().orEmpty())
+                }
         }
 
     override suspend fun analyzeImage(bytes: ByteArray, mime: String, note: String): Result<ImageAnalysisResult> =

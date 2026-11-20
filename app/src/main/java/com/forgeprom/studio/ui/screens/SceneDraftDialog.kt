@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.core.AppContainer
+import com.forgeprom.studio.core.ai.OpenAiCompatEngine
 import com.forgeprom.studio.core.util.Exporter
 import com.forgeprom.studio.domain.StoryAnalysis
 import com.forgeprom.studio.domain.StoryContext
@@ -26,6 +27,8 @@ import com.forgeprom.studio.domain.SceneTone
 import com.forgeprom.studio.domain.SceneStyle
 import com.forgeprom.studio.domain.SceneLighting
 import org.json.JSONArray
+import org.json.JSONObject
+import java.util.UUID
 import kotlin.math.roundToInt
 import com.forgeprom.studio.domain.FinalDraftExport
 import kotlinx.coroutines.CancellationException
@@ -84,6 +87,53 @@ internal fun SceneDraftDialog(
             }
         }
     }
+    var showIndex by remember { mutableStateOf(false) }
+    var chapterNumber by remember { mutableStateOf("1") }
+    var confirmDelete by remember { mutableStateOf(false) }
+    fun indexAction(action: String, payload: JSONObject? = null) {
+        busy = true
+        message = ""
+        scope.launch {
+            try {
+                val settings = container.engines.cloudGate().getOrNull()
+                if (settings == null) {
+                    message = "فعّل الموافقة السحابية من الإعدادات أولاً."
+                    return@launch
+                }
+                val engine = container.engines.engineById(settings.engineGeneral)
+                if (engine !is OpenAiCompatEngine || !engine.status(settings).isReady) {
+                    message = "اضبط بوابة Forgeprom كمزوّد OpenAI-compatible للتوليد العام."
+                    return@launch
+                }
+                val bookKey = "story_book_$promptId"
+                val book = preferences.getString(bookKey, null) ?: UUID.randomUUID().toString().also {
+                    preferences.edit().putString(bookKey, it).apply()
+                }
+                val result = engine.storyIndex(book, action, payload)
+                when (action) {
+                    "search" -> {
+                        val passages = result.getJSONArray("passages")
+                        semantic = (0 until minOf(passages.length(), 5)).joinToString("\n\n") {
+                            passages.getJSONObject(it).getString("content")
+                        }.take(900)
+                        includeNotes = true
+                        message = "تم البحث في الفهرس؛ راجع المقتطفات المعروضة قبل التوليد."
+                    }
+                    "delete" -> {
+                        semantic = null
+                        message = "حُذف الفهرس من البوابة المهيّأة."
+                    }
+                    else -> message = "حُفظت ملاحظات الفصل في الفهرس."
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                message = "تعذّر إجراء الفهرسة. تحقّق من إعدادات البوابة وتفعيل فهرس القصة."
+            } finally {
+                busy = false
+            }
+        }
+    }
     val epubPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importExcerpt(it, false) }
     val pdfPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { importExcerpt(it, true) }
     var direction by remember { mutableStateOf(SceneDirection()) }
@@ -100,6 +150,7 @@ internal fun SceneDraftDialog(
         history = (listOf(text) + history.filterNot { it == text }).take(5)
         preferences.edit().putString(historyKey, JSONArray(history).toString()).apply()
     }
+    var queue by remember { mutableStateOf(false) }
     var format by remember { mutableStateOf(SceneFormat.SCREENPLAY) }
     val draft = scene
     val screenplay = draft != null && runCatching { SceneDraft.validate(draft) }.isSuccess
@@ -247,6 +298,28 @@ internal fun SceneDraftDialog(
                         }) { Text("استبدال الملاحظات بالاقتراح") }
                         TextButton(onClick = { analysis = null }) { Text("تجاهل الاقتراح") }
                     }
+                    Row {
+                        Checkbox(queue, { queue = it }, enabled = !busy)
+                        Text("استخدام طابور Forgeprom عبر مزوّد متوافق مهيّأ للبوابة. قد يحتفظ الخادم بالمهمة بعد إغلاق النافذة.", Modifier.padding(top = 12.dp))
+                    }
+                    TextButton(enabled = !busy, onClick = { showIndex = !showIndex }) { Text("فهرس القصة على البوابة") }
+                    if (showIndex) {
+                        Text("الفهرسة ترسل الملاحظات وتحفظها في البوابة. البحث يرسل وصف المشهد. ترسل البوابة النص إلى مزوّد التضمينات.")
+                        OutlinedTextField(chapterNumber, { chapterNumber = it.filter { ch -> ch in '0'..'9' }.take(4) },
+                            enabled = !busy, label = { Text("رقم الفصل (يستبدل الفصل إن كان موجوداً)") })
+                        val chapter = chapterNumber.toIntOrNull()
+                        OutlinedButton(enabled = !busy && notes.isNotBlank() && chapter != null && chapter in 1..1000,
+                            onClick = { indexAction("chapters", JSONObject().put("chapter", chapter).put("text", notes)) }) {
+                            Text("إرسال الملاحظات لفهرسة الفصل")
+                        }
+                        OutlinedButton(enabled = !busy && brief.isNotBlank(),
+                            onClick = { indexAction("search", JSONObject().put("query", brief)) }) { Text("إرسال الوصف للبحث في الفهرس") }
+                        TextButton(enabled = !busy, onClick = { confirmDelete = !confirmDelete }) { Text("حذف فهرس القصة") }
+                        if (confirmDelete) {
+                            Text("سيُحذف كامل الفهرس لهذا الموجّه من البوابة الحالية.")
+                            TextButton(enabled = !busy, onClick = { confirmDelete = false; indexAction("delete") }) { Text("تأكيد الحذف") }
+                        }
+                    }
                     if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
                     if (message.isNotEmpty()) Text(message)
                 } else {
@@ -308,7 +381,7 @@ internal fun SceneDraftDialog(
             else Button(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
-                val request = SceneDraft.request(brief, outgoingNotes, direction, format)
+                val request = SceneDraft.request(brief, outgoingNotes, direction, format).copy(useGatewayQueue = queue)
                 scope.launch {
                     try {
                         val settings = container.engines.cloudGate().getOrNull()
@@ -321,13 +394,18 @@ internal fun SceneDraftDialog(
                             message = "اختر مزوّداً سحابياً جاهزاً من شاشة النماذج."
                             return@launch
                         }
+                        if (request.useGatewayQueue && engine !is OpenAiCompatEngine) {
+                            message = "يتطلب الطابور تهيئة مزوّد OpenAI-compatible على عنوان بوابة Forgeprom."
+                            return@launch
+                        }
                         val generated = SceneDraft.validate(engine.generate(request).getOrThrow(), request.sceneFormat)
                         if (autoSave) saveVersion(generated)
                         scene = generated
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
-                        message = "تعذّر توليد مسودة بالصيغة المختارة. يمكنك إعادة المحاولة دون فقدان الوصف."
+                        message = if (request.useGatewayQueue) "لم تصل نتيجة صالحة من الطابور. قد تستمر المهمة على الخادم؛ تحقّق قبل إعادة الإرسال."
+                        else "تعذّر توليد مسودة بالصيغة المختارة. يمكنك إعادة المحاولة دون فقدان الوصف."
                     } finally {
                         busy = false
                     }
