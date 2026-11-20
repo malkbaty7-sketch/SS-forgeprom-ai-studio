@@ -10,7 +10,13 @@ import java.io.ByteArrayOutputStream
 object PdfExcerpt {
     private const val MAX_BYTES = 8 * 1024 * 1024
 
-    fun read(context: Context, input: InputStream, limit: Int): String {
+    fun read(context: Context, input: InputStream, limit: Int): String =
+        extract(context, input, fullBook = false).trim().take(limit)
+
+    fun readBook(context: Context, input: InputStream): List<String> =
+        StoryBookParts.split(extract(context, input, fullBook = true))
+
+    private fun extract(context: Context, input: InputStream, fullBook: Boolean): String {
         val bytes = ByteArrayOutputStream().use { output ->
             val buffer = ByteArray(8192)
             while (true) {
@@ -24,11 +30,12 @@ object PdfExcerpt {
         PDFBoxResourceLoader.init(context.applicationContext)
         return PDDocument.load(bytes).use { document ->
             require(!document.isEncrypted)
+            require(!fullBook || document.numberOfPages <= 300)
             PDFTextStripper().apply {
                 startPage = 1
-                endPage = 5
+                endPage = if (fullBook) document.numberOfPages else 5
                 sortByPosition = true
-            }.getText(document).trim().take(limit)
+            }.getText(document)
         }
     }
 }

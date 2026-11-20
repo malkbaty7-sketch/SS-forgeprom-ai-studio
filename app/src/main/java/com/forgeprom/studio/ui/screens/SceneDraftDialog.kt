@@ -3,6 +3,7 @@ package com.forgeprom.studio.ui.screens
 import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.forgeprom.studio.core.util.EpubBook
 import com.forgeprom.studio.core.util.EpubExcerpt
 import com.forgeprom.studio.core.util.PdfExcerpt
 import android.widget.Toast
@@ -90,6 +91,88 @@ internal fun SceneDraftDialog(
     var showIndex by remember { mutableStateOf(false) }
     var chapterNumber by remember { mutableStateOf("1") }
     var confirmDelete by remember { mutableStateOf(false) }
+    var bookParts by remember(key) { mutableStateOf(emptyList<String>()) }
+    var uploadedParts by remember(key) { mutableIntStateOf(0) }
+    var deletedIndex by remember(key) { mutableStateOf(false) }
+    var uploadSession by remember(key) { mutableStateOf<(suspend (String, JSONObject?) -> JSONObject)?>(null) }
+    fun clearBookImport() {
+        bookParts = emptyList()
+        uploadedParts = 0
+        deletedIndex = false
+        uploadSession = null
+    }
+    fun storyBookId(): String {
+        val bookKey = "story_book_$promptId"
+        return preferences.getString(bookKey, null) ?: UUID.randomUUID().toString().also {
+            preferences.edit().putString(bookKey, it).apply()
+        }
+    }
+    fun prepareBook(uri: android.net.Uri?, pdf: Boolean) {
+        if (uri != null) {
+            busy = true
+            confirmDelete = false
+            clearBookImport()
+            message = "جارٍ استخراج نص الكتاب محليًا…"
+            scope.launch {
+                try {
+                    bookParts = withContext(Dispatchers.IO) {
+                        requireNotNull(context.contentResolver.openInputStream(uri)).use {
+                            if (pdf) PdfExcerpt.readBook(context, it) else EpubBook.read(it)
+                        }
+                    }
+                    message = if (bookParts.isEmpty()) "لم يُعثر على نص قابل للاستخراج؛ لا يدعم التطبيق OCR."
+                        else "جُهّز ${bookParts.size} جزءًا محليًا. لم يُرسل أي نص."
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    message = if (!pdf) "تعذّر تجهيز EPUB. يلزم كتاب نصي غير محمي بترتيب قراءة صالح وضمن حدود الفهرس."
+                        else "تعذّر تجهيز النص الكامل. يلزم PDF غير مشفّر حتى 8 ميبيبايت و300 صفحة، وأن يتّسع نصّه في حدود الفهرس."
+                } finally {
+                    busy = false
+                }
+            }
+        }
+    }
+    val bookPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { prepareBook(it, true) }
+    val epubBookPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { prepareBook(it, false) }
+    fun uploadBook() {
+        busy = true
+        message = ""
+        scope.launch {
+            try {
+                val settings = container.engines.cloudGate().getOrNull()
+                if (settings == null) {
+                    message = "فعّل الموافقة السحابية من الإعدادات أولاً."
+                    return@launch
+                }
+                val engine = container.engines.engineById(settings.engineGeneral)
+                if (engine !is OpenAiCompatEngine || !engine.status(settings).isReady) {
+                    message = "اضبط بوابة Forgeprom كمزوّد OpenAI-compatible للتوليد العام."
+                    return@launch
+                }
+                val send = uploadSession ?: engine.storyIndexSession(storyBookId()).also { uploadSession = it }
+                if (!deletedIndex) {
+                    semantic = null
+                    send("delete", null)
+                    deletedIndex = true
+                }
+                while (uploadedParts < bookParts.size) {
+                    val part = uploadedParts
+                    send("chapters", JSONObject().put("chapter", part + 1).put("text", bookParts[part]))
+                    uploadedParts++
+                }
+                message = "اكتملت فهرسة الكتاب (${bookParts.size} جزءًا)."
+                clearBookImport()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                message = if (deletedIndex) "توقف الرفع وقد يكون الفهرس جزئيًا. يمكنك متابعة الأجزاء المتبقية."
+                    else "لم يتأكد حذف الفهرس السابق. لم يبدأ رفع النص؛ يمكنك إعادة المحاولة."
+            } finally {
+                busy = false
+            }
+        }
+    }
     fun indexAction(action: String, payload: JSONObject? = null) {
         busy = true
         message = ""
@@ -105,11 +188,7 @@ internal fun SceneDraftDialog(
                     message = "اضبط بوابة Forgeprom كمزوّد OpenAI-compatible للتوليد العام."
                     return@launch
                 }
-                val bookKey = "story_book_$promptId"
-                val book = preferences.getString(bookKey, null) ?: UUID.randomUUID().toString().also {
-                    preferences.edit().putString(bookKey, it).apply()
-                }
-                val result = engine.storyIndex(book, action, payload)
+                val result = engine.storyIndex(storyBookId(), action, payload)
                 when (action) {
                     "search" -> {
                         val passages = result.getJSONArray("passages")
@@ -305,16 +384,36 @@ internal fun SceneDraftDialog(
                     TextButton(enabled = !busy, onClick = { showIndex = !showIndex }) { Text("فهرس القصة على البوابة") }
                     if (showIndex) {
                         Text("الفهرسة ترسل الملاحظات وتحفظها في البوابة. البحث يرسل وصف المشهد. ترسل البوابة النص إلى مزوّد التضمينات.")
+                        OutlinedButton(enabled = !busy && bookParts.isEmpty(), onClick = {
+                            bookPicker.launch(arrayOf("application/pdf"))
+                        }) { Text("تجهيز نص كتاب PDF للفهرسة") }
+                        Text("ملف PDF نصي غير مشفّر حتى 8 ميبيبايت و300 صفحة؛ لا يدعم OCR.")
+                        OutlinedButton(enabled = !busy && bookParts.isEmpty(), onClick = {
+                            epubBookPicker.launch(arrayOf("application/epub+zip", "application/octet-stream"))
+                        }) { Text("تجهيز نص كتاب EPUB للفهرسة") }
+                        if (bookParts.isNotEmpty()) {
+                            Text("الاستبدال ليس ذريًا: يُحذف الفهرس السابق أولًا، ثم يُرسل النص الكامل القابل للاستخراج إلى البوابة. قد يبقى الفهرس الجديد جزئيًا إذا توقف الرفع.")
+                            Text("الأجزاء المؤكدة: $uploadedParts من ${bookParts.size}. المتابعة متاحة ما دامت النافذة مفتوحة.")
+                            OutlinedButton(enabled = !busy, onClick = { uploadBook() }) {
+                                Text(if (deletedIndex) "متابعة رفع الأجزاء المتبقية" else "تأكيد استبدال الفهرس ورفع النص")
+                            }
+                            TextButton(enabled = !busy, onClick = {
+                                val attempted = uploadSession != null
+                                clearBookImport()
+                                message = if (attempted) "أُلغي الاستيراد المحلي. لا يعيد الإلغاء الفهرس السابق."
+                                    else "أُلغي تجهيز الكتاب دون إرسال النص."
+                            }) { Text("التخلي عن الاستيراد") }
+                        }
                         OutlinedTextField(chapterNumber, { chapterNumber = it.filter { ch -> ch in '0'..'9' }.take(4) },
                             enabled = !busy, label = { Text("رقم الفصل (يستبدل الفصل إن كان موجوداً)") })
                         val chapter = chapterNumber.toIntOrNull()
-                        OutlinedButton(enabled = !busy && notes.isNotBlank() && chapter != null && chapter in 1..1000,
+                        OutlinedButton(enabled = !busy && bookParts.isEmpty() && notes.isNotBlank() && chapter != null && chapter in 1..1000,
                             onClick = { indexAction("chapters", JSONObject().put("chapter", chapter).put("text", notes)) }) {
                             Text("إرسال الملاحظات لفهرسة الفصل")
                         }
                         OutlinedButton(enabled = !busy && brief.isNotBlank(),
                             onClick = { indexAction("search", JSONObject().put("query", brief)) }) { Text("إرسال الوصف للبحث في الفهرس") }
-                        TextButton(enabled = !busy, onClick = { confirmDelete = !confirmDelete }) { Text("حذف فهرس القصة") }
+                        TextButton(enabled = !busy && bookParts.isEmpty(), onClick = { confirmDelete = !confirmDelete }) { Text("حذف فهرس القصة") }
                         if (confirmDelete) {
                             Text("سيُحذف كامل الفهرس لهذا الموجّه من البوابة الحالية.")
                             TextButton(enabled = !busy, onClick = { confirmDelete = false; indexAction("delete") }) { Text("تأكيد الحذف") }

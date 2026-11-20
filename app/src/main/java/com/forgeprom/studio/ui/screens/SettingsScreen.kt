@@ -63,6 +63,8 @@ fun SettingsScreen(container: AppContainer, onAbout: () -> Unit) {
     ) {
         Text("الإعدادات", style = MaterialTheme.typography.headlineSmall)
 
+        GatewayInvoices(container)
+
         SectionCard("المظهر") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
