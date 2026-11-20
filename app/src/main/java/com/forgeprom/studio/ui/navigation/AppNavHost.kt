@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.ui.screens.AboutScreen
 import com.forgeprom.studio.ui.screens.AnalysisScreen
+import com.forgeprom.studio.ui.screens.BackupScreen
 import com.forgeprom.studio.ui.screens.CreateScreen
 import com.forgeprom.studio.ui.screens.DashboardScreen
 import com.forgeprom.studio.ui.screens.EditorScreen
@@ -76,6 +77,7 @@ fun AppNavHost(container: AppContainer) {
         Destinations.IMAGE -> "الصورة"
         Destinations.PROJECT_DETAIL -> "تفاصيل المشروع"
         Destinations.EDITOR -> "محرّر الموجّه"
+        Destinations.BACKUP -> "النسخ الاحتياطي"
         Destinations.ABOUT -> "حول التطبيق"
         else -> null
     }
@@ -157,8 +159,13 @@ fun AppNavHost(container: AppContainer) {
                         }
                         composable(Destinations.MODELS) { ModelsScreen(container = container) }
                         composable(Destinations.SETTINGS) {
-                            SettingsScreen(container = container, onAbout = { nav.navigate(Destinations.ABOUT) })
+                            SettingsScreen(
+                                container = container,
+                                onBackup = { nav.navigate(Destinations.BACKUP) },
+                                onAbout = { nav.navigate(Destinations.ABOUT) }
+                            )
                         }
+                        composable(Destinations.BACKUP) { BackupScreen(container = container) }
                         composable(Destinations.ABOUT) { AboutScreen() }
                     }
                 }

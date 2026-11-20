@@ -14,9 +14,11 @@ core/
   data/           Room: 6 كيانات (Project, Prompt, Analysis, Activity, EditorFile, ImageAnalysis)
   settings/       DataStore: ثيم، لغة الموجه، موافقة السحابة، محرك كل مهمة
   security/       ApiKeyStore — EncryptedSharedPreferences
+  editor/         DraftStore + DraftCodec — مسودات محرر محلية قابلة للاسترداد
+  backup/         SimpleJson + BackupCodec + BackupRepository — تصدير/استعادة دمجية
   registry/       FeatureRegistry — سجل ميزات صادق
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
-domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique — Kotlin نقي
+domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters — Kotlin نقي
 ```
 
 ## تدفق التوليد
@@ -44,5 +46,5 @@ CreateScreen (فكرة) → IdeaAnalyzer.analyze → SessionHolder.draft
 
 ## الاختبار وCI
 
-- اختبارات JUnit4 لطبقة المجال (`app/src/test/.../DomainTests.kt`) — 8 اختبارات.
+- اختبارات JUnit4 لطبقة المجال (`app/src/test/...`) — تشمل الآن البحث العربي والتصفية وترميز المسودات والنسخ الاحتياطي.
 - GitHub Actions: `testDebugUnitTest` ثم `assembleDebug` ثم رفع APK كـ artifact.

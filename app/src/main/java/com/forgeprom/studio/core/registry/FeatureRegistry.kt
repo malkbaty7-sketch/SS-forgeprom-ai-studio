@@ -39,7 +39,10 @@ object FeatureRegistry {
         Feature("CI.BUILD", "بناء APK تلقائي عبر GitHub Actions", "R12", true, "مكتمل — workflow في المستودع"),
         Feature("NEURAL.ONDEVICE", "نموذج عصبي محلي على الجهاز", "R13", true, "توليد نصي اختياري بعد استيراد حزمة MediaPipe متوافقة على ARM64"),
         Feature("UI.RUNTIME", "تشغيل سكربت حسابي داخل المحرر", "R3", true, "لغة حسابية محدودة تعمل محليًا دون ملفات أو شبكة"),
-        Feature("SEARCH.WEB", "البحث في الإنترنت", "R9", true, "اختياري عبر بوابة مهيّأة وموافقة صريحة")
+        Feature("SEARCH.WEB", "البحث في الإنترنت", "R9", true, "اختياري عبر بوابة مهيّأة وموافقة صريحة"),
+        Feature("EDITOR.AUTOSAVE", "حفظ تلقائي واسترداد مسودات المحرر", "R14", true, "مكتمل — مسودة محلية لكل موجّه مع استعادة صريحة"),
+        Feature("PROJECT.SEARCH", "بحث عربي مطبَّع وتصفية بالوسوم", "R14", true, "مكتمل — بحث في الاسم والوصف والوسوم دون إنترنت"),
+        Feature("BACKUP.LOCAL", "نسخ احتياطي واستعادة محلية بصيغة JSON", "R14", true, "مكتمل — تصدير واستعادة دمجية عبر منتقي ملفات النظام")
     )
 
     fun byId(id: String): Feature? = features.firstOrNull { it.id == id }

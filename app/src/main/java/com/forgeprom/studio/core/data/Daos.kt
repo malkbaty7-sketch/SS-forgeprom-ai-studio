@@ -26,8 +26,8 @@ interface ProjectDao {
     @Update
     suspend fun update(project: ProjectEntity)
 
-    @Query("UPDATE projects SET name = :name, description = :description, updatedAt = :now WHERE id = :id")
-    suspend fun updateDetails(id: Long, name: String, description: String, now: Long): Int
+    @Query("UPDATE projects SET name = :name, description = :description, tags = :tags, updatedAt = :now WHERE id = :id")
+    suspend fun updateDetails(id: Long, name: String, description: String, tags: String, now: Long): Int
 
     @Query("UPDATE projects SET isPinned = :pinned, updatedAt = :now WHERE id = :id")
     suspend fun setPinned(id: Long, pinned: Boolean, now: Long)
@@ -40,6 +40,10 @@ interface ProjectDao {
 
     @Query("SELECT COUNT(*) FROM projects")
     suspend fun count(): Int
+
+    /** نسخة واحدة لكل المشاريع — للنسخ الاحتياطي وكشف التكرار عند الاستعادة. */
+    @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
+    suspend fun allOnce(): List<ProjectEntity>
 }
 
 @Dao
@@ -61,6 +65,9 @@ interface PromptDao {
 
     @Query("SELECT COUNT(*) FROM prompts")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM prompts ORDER BY projectId, updatedAt DESC")
+    suspend fun allOnce(): List<PromptEntity>
 }
 
 @Dao
@@ -70,6 +77,9 @@ interface AnalysisDao {
 
     @Insert
     suspend fun insert(analysis: AnalysisEntity): Long
+
+    @Query("SELECT * FROM analyses ORDER BY projectId, createdAt DESC")
+    suspend fun allOnce(): List<AnalysisEntity>
 }
 
 @Dao
@@ -100,6 +110,9 @@ interface EditorFileDao {
 
     @Query("DELETE FROM editor_files WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM editor_files ORDER BY projectId, updatedAt DESC")
+    suspend fun allOnce(): List<EditorFileEntity>
 }
 
 @Dao
@@ -109,4 +122,7 @@ interface ImageAnalysisDao {
 
     @Insert
     suspend fun insert(analysis: ImageAnalysisEntity): Long
+
+    @Query("SELECT * FROM image_analyses ORDER BY projectId, createdAt DESC")
+    suspend fun allOnce(): List<ImageAnalysisEntity>
 }

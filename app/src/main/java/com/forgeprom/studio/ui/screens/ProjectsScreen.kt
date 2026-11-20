@@ -12,12 +12,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -32,13 +36,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.dp
 import com.forgeprom.studio.R
 import com.forgeprom.studio.ui.components.ActionGroup
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.data.ProjectEntity
+import com.forgeprom.studio.domain.ProjectFilter
+import com.forgeprom.studio.domain.ProjectFilterMode
+import com.forgeprom.studio.domain.ProjectFilters
+import com.forgeprom.studio.domain.ProjectSearchFields
+import com.forgeprom.studio.domain.ProjectTags
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.combine
@@ -47,6 +56,7 @@ import com.forgeprom.studio.ui.components.observeScreenData
 
 /**
  * R2 — إدارة المشاريع: إنشاء، تثبيت، أرشفة، حذف، فتح التفاصيل.
+ * R14 — بحث عربي مطبَّع + تصفية بالنطاق والوسوم.
  */
 @Composable
 fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
@@ -61,6 +71,10 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var formError by remember { mutableStateOf<String?>(null) }
+    var query by remember { mutableStateOf("") }
+    var mode by remember { mutableStateOf(ProjectFilterMode.ALL) }
+    var tag by remember { mutableStateOf<String?>(null) }
+
     fun mutate(success: String, inForm: Boolean = false, operation: suspend () -> Unit) {
         if (busy) return
         busy = true
@@ -88,6 +102,12 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
         showForm = true
     }
 
+    fun clearFilters() {
+        query = ""
+        mode = ProjectFilterMode.ALL
+        tag = null
+    }
+
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -101,6 +121,23 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
             }
         }
 
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(Icons.Filled.Clear, contentDescription = "مسح البحث")
+                    }
+                }
+            },
+            placeholder = { Text("ابحث بالاسم أو الوصف أو الوسم") },
+            label = { Text("بحث") }
+        )
+
         if (busy && !showForm) ScreenNotice("جارٍ تحديث المشاريع…", loading = true)
         notice?.let { ScreenNotice(it) }
         val current = load
@@ -110,20 +147,76 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
             else ScreenNotice("تعذّر تحميل المشاريع.", action = "إعادة المحاولة") { retry++ }
         } else {
             val (projects, archived) = rows
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (projects.isEmpty() && archived.isEmpty()) {
+            val all = projects + archived
+            val availableTags = ProjectTags.all(all.map { it.tags })
+            val filter = ProjectFilter(query = query, mode = mode, tag = tag)
+            val visibleActive = if (mode == ProjectFilterMode.ARCHIVED) emptyList() else projects.filter { it.matches(filter) }
+            val visibleArchived = if (mode == ProjectFilterMode.PINNED) emptyList() else archived.filter { it.matches(filter) }
+
+            ActionGroup {
+                FilterChip(
+                    selected = mode == ProjectFilterMode.ALL,
+                    onClick = { mode = ProjectFilterMode.ALL },
+                    label = { Text("الكل") }
+                )
+                FilterChip(
+                    selected = mode == ProjectFilterMode.PINNED,
+                    onClick = { mode = ProjectFilterMode.PINNED },
+                    label = { Text("المثبتة") }
+                )
+                FilterChip(
+                    selected = mode == ProjectFilterMode.ARCHIVED,
+                    onClick = { mode = ProjectFilterMode.ARCHIVED },
+                    label = { Text("المؤرشفة") }
+                )
+            }
+
+            if (availableTags.isNotEmpty()) {
+                ActionGroup {
+                    availableTags.forEach { available ->
+                        val selected = tag != null && ProjectTags.sameTag(available, tag!!)
+                        FilterChip(
+                            selected = selected,
+                            onClick = { tag = if (selected) null else available },
+                            label = { Text("#" + available) }
+                        )
+                    }
+                }
+            }
+
+            if (filter.isActive && (visibleActive.isNotEmpty() || visibleArchived.isNotEmpty())) {
+                Text(
+                    "النتائج: " + (visibleActive.size + visibleArchived.size) + " من " + all.size,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (all.isEmpty()) {
                     item {
                         ScreenNotice(stringResource(R.string.projects_empty), action = stringResource(R.string.project_new)) {
                             if (!busy) openForm()
                         }
                     }
+                } else if (visibleActive.isEmpty() && visibleArchived.isEmpty()) {
+                    item {
+                        ScreenNotice(
+                            "لا توجد مشاريع مطابقة للبحث أو التصفية الحالية.",
+                            action = "مسح الفلاتر"
+                        ) { clearFilters() }
+                    }
                 }
-                items(projects, key = { "active-${it.id}" }) { p ->
+                items(visibleActive, key = { "active-${it.id}" }) { p ->
                     ProjectRow(
                         project = p,
                         enabled = !busy,
                         onEdit = { openForm(p) },
                         onOpen = { onOpen(p.id) },
+                        onTagClick = { clicked -> tag = if (tag != null && ProjectTags.sameTag(clicked, tag!!)) null else clicked },
                         onPin = {
                             mutate(if (p.isPinned) "أُلغي تثبيت المشروع." else "ثُبّت المشروع.") {
                                 dao.setPinned(p.id, !p.isPinned, System.currentTimeMillis())
@@ -135,20 +228,21 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
                         onDelete = { deleting = p }
                     )
                 }
-                if (archived.isNotEmpty()) {
+                if (visibleArchived.isNotEmpty()) {
                     item {
                         Text(
-                            "المؤرشفة (" + archived.size + ")",
+                            "المؤرشفة (" + visibleArchived.size + ")",
                             style = MaterialTheme.typography.titleSmall,
                             modifier = Modifier.padding(top = 12.dp)
                         )
                     }
-                    items(archived, key = { "archived-${it.id}" }) { p ->
+                    items(visibleArchived, key = { "archived-${it.id}" }) { p ->
                         ProjectRow(
                             project = p,
                             enabled = !busy,
                             onEdit = { openForm(p) },
                             onOpen = { onOpen(p.id) },
+                            onTagClick = { clicked -> tag = if (tag != null && ProjectTags.sameTag(clicked, tag!!)) null else clicked },
                             onPin = null,
                             onArchive = {
                                 mutate("استُعيد المشروع.") { dao.setArchived(p.id, false, System.currentTimeMillis()) }
@@ -165,6 +259,7 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
         val original = editing
         var name by remember(original?.id) { mutableStateOf(original?.name.orEmpty()) }
         var description by remember(original?.id) { mutableStateOf(original?.description.orEmpty()) }
+        var tagsText by remember(original?.id) { mutableStateOf(original?.tags.orEmpty()) }
         val nameError = name.trim().length > 120
         val descriptionError = description.trim().length > 2000
         AlertDialog(
@@ -184,6 +279,15 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
                         label = { Text(stringResource(R.string.project_description)) }, isError = descriptionError,
                         supportingText = { if (descriptionError) Text(stringResource(R.string.project_description_limit)) }
                     )
+                    OutlinedTextField(
+                        value = tagsText,
+                        onValueChange = { tagsText = it.take(300); formError = null },
+                        enabled = !busy,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("الوسوم (اختياري)") },
+                        supportingText = { Text("حتى ١٢ وسماً، مفصولة بفاصلة. مثال: تصميم، عربي") }
+                    )
                     if (busy) ScreenNotice(stringResource(R.string.project_saving), loading = true)
                     formError?.let { ScreenNotice(it) }
                 }
@@ -194,12 +298,18 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
                     onClick = {
                         val cleanName = name.trim()
                         val cleanDescription = description.trim()
+                        val cleanTags = ProjectTags.normalize(tagsText)
                         mutate(if (original == null) "أُنشئ المشروع." else "حُفظت تعديلات المشروع.", inForm = true) {
                             if (original == null) {
-                                dao.insert(ProjectEntity(name = cleanName, description = cleanDescription))
+                                dao.insert(ProjectEntity(name = cleanName, description = cleanDescription, tags = cleanTags))
                                 container.logActivity("project", "إنشاء مشروع: $cleanName")
                             } else {
-                                check(dao.updateDetails(original.id, cleanName, cleanDescription, System.currentTimeMillis()) == 1)
+                                check(
+                                    dao.updateDetails(
+                                        original.id, cleanName, cleanDescription, cleanTags,
+                                        System.currentTimeMillis()
+                                    ) == 1
+                                )
                             }
                         }
                     }
@@ -225,16 +335,29 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
     }
 }
 
+private fun ProjectEntity.matches(filter: ProjectFilter): Boolean = ProjectFilters.matches(
+    ProjectSearchFields(
+        name = name,
+        description = description,
+        tags = tags,
+        isPinned = isPinned,
+        isArchived = isArchived
+    ),
+    filter
+)
+
 @Composable
 private fun ProjectRow(
     project: ProjectEntity,
     enabled: Boolean,
     onOpen: () -> Unit,
     onEdit: () -> Unit,
+    onTagClick: (String) -> Unit,
     onPin: (() -> Unit)?,
     onArchive: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val tags = ProjectTags.parse(project.tags)
     Card(onClick = onOpen, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(project.name, style = MaterialTheme.typography.titleMedium.copy(textDirection = TextDirection.Content))
@@ -244,6 +367,17 @@ private fun ProjectRow(
                 style = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Content),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (tags.isNotEmpty()) {
+                ActionGroup {
+                    tags.forEach { value ->
+                        AssistChip(
+                            onClick = { onTagClick(value) },
+                            enabled = enabled,
+                            label = { Text("#" + value, style = MaterialTheme.typography.labelSmall) }
+                        )
+                    }
+                }
+            }
             ActionGroup {
                 IconButton(onClick = onEdit, enabled = enabled) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.project_edit)) }
                 if (onPin != null) IconButton(onClick = onPin, enabled = enabled) {
