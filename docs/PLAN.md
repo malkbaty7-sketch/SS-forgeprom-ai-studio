@@ -1,6 +1,6 @@
 # خطة Forgeprom Code Studio — R0 إلى R13
 
-**الإصدار الحالي: 1.6.0 (versionCode 8)**
+**الإصدار الحالي: 1.6.1 (versionCode 9)**
 
 ## الحالات
 

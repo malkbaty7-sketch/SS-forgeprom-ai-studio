@@ -198,3 +198,7 @@ print subtotal + 2
 - CI يبني الإصدار ويرفعه في كل PR، فتكسرات R8 تظهر مباشرة.
 - لا يوجد baseline profile مولّد على جهاز؛ نعتمد `profileinstaller` وملفات تعريف المكتبات. راجع [القيود](docs/CHANGELOG.md).
 
+## الأصول البصرية
+
+- الأيقونة التكيفية في `res/mipmap-*` مع خلفية `@color/ic_launcher_background`، وأيقونة المتجر في `app/src/main/ic_launcher-playstore.png`.
+- الأصول المصدرية عالية الدقة تُحفظ خارج git في `icon-work/` (مستثناة).
