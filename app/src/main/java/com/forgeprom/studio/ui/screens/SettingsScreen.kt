@@ -49,6 +49,13 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Cloud
+import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Verified
 
 /**
  * R11 — الإعدادات: الثيم، لغة الموجه، بوابة الموافقة، المفاتيح المشفرة، تشخيص الميزات.
@@ -82,7 +89,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             GatewayUsage(container, settings.cloudConsent)
         }
 
-        SectionCard("المظهر") {
+        SectionCard("المظهر", icon = Icons.Outlined.Palette) {
             ActionGroup {
                 listOf(
                     ThemeMode.SYSTEM to "تلقائي",
@@ -100,7 +107,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
 
         LanguageSection()
 
-        SectionCard("لغة البرومبت الناتج") {
+        SectionCard("لغة البرومبت الناتج", icon = Icons.Outlined.Code) {
             ActionGroup {
                 listOf(
                     PromptLanguage.AR to "عربي",
@@ -116,7 +123,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             }
         }
 
-        SectionCard("موافقة السحابة") {
+        SectionCard("موافقة السحابة", icon = Icons.Outlined.Cloud) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("السماح بإرسال المحتوى إلى محركات سحابية")
@@ -134,7 +141,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             }
         }
 
-        SectionCard("مفاتيح API (تُحفظ مشفّرة على الجهاز)") {
+        SectionCard("مفاتيح API (تُحفظ مشفّرة على الجهاز)", icon = Icons.Outlined.Key) {
             OutlinedTextField(
                 value = geminiKey,
                 onValueChange = { geminiKey = it },
@@ -186,7 +193,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             )
         }
 
-        SectionCard("تشخيص الميزات (سجل صادق)") {
+        SectionCard("تشخيص الميزات (سجل صادق)", icon = Icons.Outlined.Verified) {
             Text(
                 "جاهز: " + FeatureRegistry.readyCount() + " من " + FeatureRegistry.plannedCount(),
                 style = MaterialTheme.typography.titleSmall
@@ -221,7 +228,7 @@ private fun LanguageSection() {
     val context = LocalContext.current
     val store = remember { LanguageStore(context) }
     var current by remember { mutableStateOf(store.current()) }
-    SectionCard(stringResource(R.string.ui_language)) {
+    SectionCard(stringResource(R.string.ui_language), icon = Icons.Outlined.Translate) {
         ActionGroup {
             listOf(
                 LanguageStore.AR to stringResource(R.string.language_arabic),

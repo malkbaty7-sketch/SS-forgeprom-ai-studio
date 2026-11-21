@@ -27,6 +27,10 @@ import com.forgeprom.studio.domain.IdeaAnalyzer
 import com.forgeprom.studio.domain.PromptTemplates
 import com.forgeprom.studio.ui.components.SectionCard
 import kotlinx.coroutines.launch
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Code
 
 private val GOALS = listOf(
     "تطبيق كامل", "ميزة لتطبيق موجود", "واجهة فقط",
@@ -62,7 +66,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         )
 
-        SectionCard("قوالب بداية (اختياري)") {
+        SectionCard("قوالب بداية (اختياري)", icon = Icons.Outlined.AutoAwesome) {
             Text(
                 "اختر قالباً لتعبئة الفكرة والهدف والتقنية، ثم عدّل النص بحرية. التحليل يبقى محلياً.",
                 style = MaterialTheme.typography.bodySmall,
@@ -83,7 +87,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             }
         }
 
-        SectionCard("نوع الطلب") {
+        SectionCard("نوع الطلب", icon = Icons.Outlined.Category) {
             Column {
                 GOALS.chunked(3).forEach { rowGoals ->
                     ActionGroup {
@@ -95,7 +99,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             }
         }
 
-        SectionCard("التقنية المستهدفة") {
+        SectionCard("التقنية المستهدفة", icon = Icons.Outlined.Code) {
             Column {
                 TECHS.chunked(3).forEach { rowTechs ->
                     ActionGroup {

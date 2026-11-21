@@ -548,4 +548,10 @@
     <string name="fx063">"مكوّن TokenEstimateCard مغطّى باختبارين عبر Robolectric داخل CI"</string>
     <string name="fx064">"واجهة عربية وإنجليزية"</string>
     <string name="fx065">"العربية افتراضية والإنجليزية عبر values-en وكتالوج ترجمة؛ 13 نصاً ديناميكياً ورسائل المشاركة خارج التغطية"</string>
+    <string name="ux001">"مشاريع"</string>
+    <string name="ux002">"موجّهات"</string>
+    <string name="ux003">"ميزات جاهزة"</string>
+    <string name="ux004">"نشاطات"</string>
+    <string name="ux005">"إدارة الموجهات المحفوظة"</string>
+    <string name="ux006">"محلي أو Gemini بموافقتك"</string>
 </resources>
