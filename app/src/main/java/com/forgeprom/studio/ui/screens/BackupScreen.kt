@@ -38,6 +38,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.outlined.Download
 
 /**
  * نسخ احتياطي محلي لمشاريع المستخدم وموجّاته إلى ملف JSON، واستعادتها دمجاً.
@@ -135,7 +138,7 @@ fun BackupScreen(container: AppContainer) {
         message?.let { ScreenNotice(it) }
         error?.let { ScreenNotice(it) }
 
-        SectionCard("تصدير نسخة احتياطية") {
+        SectionCard("تصدير نسخة احتياطية", icon = Icons.Outlined.UploadFile) {
             Text(
                 "ملف JSON واحد يحتوي مشاريعك وموجّاتك وتحليلاتك وملفات المحرر. " +
                     "لا يحتوي مفاتيح API ولا إعدادات الجهاز ولا مسودات غير محفوظة.",
@@ -149,7 +152,7 @@ fun BackupScreen(container: AppContainer) {
             ) { Text("تصدير نسخة احتياطية") }
         }
 
-        SectionCard("استعادة من ملف") {
+        SectionCard("استعادة من ملف", icon = Icons.Outlined.Download) {
             Text(
                 "الاستعادة دمج فقط: تُضاف المشاريع غير الموجودة، ولا يُحذف أو يُستبدل أي شيء. " +
                     "المشروع الموجود مسبقاً (بالاسم وتاريخ الإنشاء نفسيهما) يُتجاهل مع ملحقاته.",
