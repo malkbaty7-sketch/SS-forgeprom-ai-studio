@@ -14,6 +14,7 @@ object Destinations {
     const val RESULT = "result"
     const val IMAGE = "image"
     const val BACKUP = "backup"
+    const val PROMPT_LIBRARY = "prompt-library"
 
     const val PROJECT_DETAIL = "project/{id}"
     fun projectDetail(id: Long) = "project/" + id

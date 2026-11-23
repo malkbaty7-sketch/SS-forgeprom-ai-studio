@@ -53,6 +53,7 @@ import com.forgeprom.studio.ui.screens.EditorScreen
 import com.forgeprom.studio.ui.screens.ImageScreen
 import com.forgeprom.studio.ui.screens.ModelsScreen
 import com.forgeprom.studio.ui.screens.ProjectDetailScreen
+import com.forgeprom.studio.ui.screens.PromptLibraryScreen
 import com.forgeprom.studio.ui.screens.ProjectChatScreen
 import com.forgeprom.studio.ui.screens.ProjectConversationsScreen
 import com.forgeprom.studio.ui.screens.ProjectsScreen
@@ -98,6 +99,7 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
         Destinations.EDITOR -> "محرّر الموجّه"
         Destinations.BACKUP -> "النسخ الاحتياطي"
         Destinations.ABOUT -> "حول التطبيق"
+        Destinations.PROMPT_LIBRARY -> "الموجهات السابقة"
         else -> null
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -189,7 +191,8 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
                                 onCreate = { nav.navigate(Destinations.CREATE) },
                                 onProjects = { nav.navigate(Destinations.PROJECTS) },
                                 onImage = { nav.navigate(Destinations.IMAGE) },
-                                onAbout = { nav.navigate(Destinations.ABOUT) }
+                                onAbout = { nav.navigate(Destinations.ABOUT) },
+                                onPromptHistory = { nav.navigate(Destinations.PROMPT_LIBRARY) }
                             )
                         }
                         composable(Destinations.CREATE) {
@@ -206,6 +209,12 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
                         }
                         composable(Destinations.PROJECTS) {
                             ProjectsScreen(container = container, onOpen = { id -> nav.navigate(Destinations.projectDetail(id)) })
+                        }
+                        composable(Destinations.PROMPT_LIBRARY) {
+                            PromptLibraryScreen(
+                                container = container,
+                                onOpenPrompt = { id -> nav.navigate(Destinations.editor(id)) }
+                            )
                         }
                         composable(Destinations.PROJECT_DETAIL) { entry ->
                             val id = entry.arguments?.getString("id")?.toLongOrNull() ?: 0L

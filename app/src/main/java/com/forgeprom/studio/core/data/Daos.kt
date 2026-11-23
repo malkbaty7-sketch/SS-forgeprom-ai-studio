@@ -1,5 +1,6 @@
 package com.forgeprom.studio.core.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
@@ -46,8 +47,25 @@ interface ProjectDao {
     suspend fun allOnce(): List<ProjectEntity>
 }
 
+/** سجل الموجهات المحفوظة مع اسم المشروع لعرضها في مكتبة واحدة. */
+data class PromptLibraryItem(
+    val id: Long,
+    val projectId: Long,
+    val title: String,
+    val content: String,
+    val qualityScore: Int,
+    val goal: String,
+    val tech: String,
+    val updatedAt: Long,
+    @ColumnInfo(name = "projectName") val projectName: String
+)
+
 @Dao
 interface PromptDao {
+    @Query("SELECT prompts.id, prompts.projectId, prompts.title, prompts.content, prompts.qualityScore, prompts.goal, prompts.tech, prompts.updatedAt, projects.name AS projectName " +
+        "FROM prompts INNER JOIN projects ON projects.id = prompts.projectId " +
+        "ORDER BY prompts.updatedAt DESC, prompts.id DESC")
+    fun library(): Flow<List<PromptLibraryItem>>
     @Query("SELECT * FROM prompts WHERE projectId = :projectId ORDER BY updatedAt DESC")
     fun forProject(projectId: Long): Flow<List<PromptEntity>>
 
