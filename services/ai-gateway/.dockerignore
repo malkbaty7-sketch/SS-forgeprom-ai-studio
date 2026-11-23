@@ -2,7 +2,7 @@ node_modules
 npm-debug.log
 .env
 .env.*
+.git
+.gitignore
 *.test.mjs
-README.md
-Dockerfile
-compose.yaml
+coverage

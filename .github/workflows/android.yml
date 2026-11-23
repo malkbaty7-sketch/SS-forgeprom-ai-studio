@@ -20,23 +20,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.9
+      - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.9'
-          cache-disabled: true
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
 
       - name: Unit tests (domain layer)
         shell: bash
         run: |
-          if ! gradle testDebugUnitTest --console=plain --stacktrace 2>&1 | tee android-test.log; then
+          if ! ./gradlew testDebugUnitTest --console=plain --stacktrace 2>&1 | tee android-test.log; then
             find app/build/test-results -name '*.xml' -print0 2>/dev/null | xargs -0 grep -h -o '<failure[^>]*' 2>/dev/null | head -6 | cut -c1-900 | while IFS= read -r detail; do printf '::error::%s\n' "$detail"; done
             while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^.* > .* FAILED|^Execution failed|^Caused by:' android-test.log | head -5)
             exit 1
           fi
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -47,7 +47,7 @@ jobs:
       - name: Build release APK (R8 + shrink)
         shell: bash
         run: |
-          if ! gradle assembleRelease --console=plain --stacktrace 2>&1 | tee android-release.log; then
+          if ! ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee android-release.log; then
             while IFS= read -r line; do printf '::error::%s\n' "$line"; done < <(grep -E '^e: |^> Task .*FAILED|^Execution failed|^Caused by:|R8|Missing class' android-release.log | head -20)
             exit 1
           fi

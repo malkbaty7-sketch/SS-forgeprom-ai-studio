@@ -6,7 +6,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-COPY *.mjs *.sql ./
+# Copy production gateway files only (tests excluded via .dockerignore and explicit list).
+COPY access.mjs billing.mjs billing.sql gateway-http.mjs jobs.mjs jobs.sql lifecycle.mjs \
+     provider.mjs quota.sql server.mjs shared-quota.mjs story.mjs story.sql usage.mjs \
+     usage.sql web-search.mjs worker.mjs ./
 
 USER node
 EXPOSE 8080
