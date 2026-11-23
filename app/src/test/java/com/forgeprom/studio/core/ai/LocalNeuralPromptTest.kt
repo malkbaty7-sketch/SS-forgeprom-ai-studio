@@ -16,6 +16,19 @@ class LocalNeuralPromptTest {
         }
     }
 
+    @Test fun projectChatPromptContainsSavedContextAndConversationHistory() {
+        val prompt = localNeuralPrompt(GenerationRequest(
+            instruction = "أضف صفحة دفع",
+            goal = "project chat",
+            tech = "",
+            assistantSystemInstruction = "ذاكرة المشروع: متجر بReact",
+            conversationHistory = listOf(ConversationTurn("user", "أريد متجرًا عربيًا"))
+        ))
+        assertTrue(prompt.contains("ذاكرة المشروع: متجر بReact"))
+        assertTrue(prompt.contains("رسالة سابقة للمستخدم: أريد متجرًا عربيًا"))
+        assertTrue(prompt.contains("طلب المستخدم الحالي: أضف صفحة دفع"))
+    }
+
     @Test fun scenePromptUsesSceneInstructionsNotGeneralTemplate() {
         val request = GenerationRequest("Two characters meet", "", "", cinematicScene = true)
         val prompt = localNeuralPrompt(request)

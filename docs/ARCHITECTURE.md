@@ -9,9 +9,9 @@
 ```
 ui/          Compose screens + navigation (AppNavHost، 5 تبويبات)
 core/
-  AppContainer    حقن يدوي: db + settings + apiKeys + engines + session
-  ai/             AiEngine (واجهة) + LocalRulesEngine + GeminiEngine + OpenAiCompatEngine + AiEngineManager
-  data/           Room v2: 7 كيانات (+ PromptVersion) مع ترحيل 1→2
+  AppContainer    حقن يدوي: db + settings + auth + apiKeys + engines + session
+  ai/             AiEngine (واجهة) + LocalRulesEngine + GeminiEngine + OpenAiCompatEngine + AiEngineManager + ProjectContextBuilder
+  data/           Room v3: كيانات المشاريع والمخرجات + محادثات المشروع ورسائلها (ترحيل 1→2→3)
   settings/       DataStore: ثيم، لغة الموجه، موافقة السحابة، محرك كل مهمة
   security/       ApiKeyStore — EncryptedSharedPreferences
   editor/         DraftStore + DraftCodec — مسودات محرر محلية قابلة للاسترداد
@@ -23,6 +23,10 @@ core/
   util/           Connectivity، Exporter (FileProvider + ACTION_SEND)
 domain/            IdeaAnalyzer، PromptBuilder، QualityChecker، Critique، ArabicSearch، ProjectFilters، EndpointPolicy، UsageSummary، PromptTemplates — Kotlin نقي
 ```
+
+## ذاكرة المشروع والمحادثات
+
+يحتوي Room على محادثات ورسائل مرتبطة بمشروع بعلاقات حذف متسلسل. وصف المشروع هو الذاكرة الأساسية القابلة للتحرير؛ `ProjectContextBuilder` يجهّز سياقاً محدوداً من الوصف، أحدث 4 موجّهات، 3 تحليلات، 3 ملفات، 3 تحليلات صور، و8 رسائل من محادثات المشروع الأخرى (حتى 7000 محرف). يرسل المحرك أيضاً آخر 6 أدوار للمحادثة الحالية. Gemini وOpenAI-compatible وMediaPipe المحلي يستقبلون المحادثة؛ المحرك القاعدي لا يدّعي دعمها. البوابة السحابية لا تُستدعى ما لم تكن الموافقة ممنوحة.
 
 ## تدفق التوليد
 

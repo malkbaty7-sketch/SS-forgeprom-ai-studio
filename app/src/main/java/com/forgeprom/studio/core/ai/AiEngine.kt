@@ -14,11 +14,15 @@ import kotlinx.coroutines.withContext
  * R4/R5 — الواجهة الموحدة للنماذج المحلية والسحابية.
  * جميع عمليات المحرك خارج خيط الواجهة (Dispatchers.IO/Default) — لا تجميد أبداً.
  */
+data class ConversationTurn(val role: String, val content: String)
+
 data class GenerationRequest(
     val instruction: String,
     val goal: String,
     val tech: String,
     val projectContext: String = "",
+    val assistantSystemInstruction: String? = null,
+    val conversationHistory: List<ConversationTurn> = emptyList(),
     val promptLanguage: PromptLanguage = PromptLanguage.AR,
     val isImageInspired: Boolean = false,
     val cinematicEdit: Boolean = false,
@@ -82,8 +86,11 @@ class LocalRulesEngine : AiEngine {
         statusLabel = "جاهز — توليد قاعدي يعمل دون إنترنت."
     )
 
-    override suspend fun generate(request: GenerationRequest): Result<String> =
-        withContext(Dispatchers.Default) {
+    override suspend fun generate(request: GenerationRequest): Result<String> {
+        if (request.assistantSystemInstruction != null) return Result.failure(
+            UnsupportedOperationException("المحرك المحلي القاعدي لا يدعم المحادثة الحرة. اختر نموذجاً عصبياً مثبّتاً أو محركاً سحابياً بعد الموافقة.")
+        )
+        return withContext(Dispatchers.Default) {
             runCatching {
                 val draft = IdeaAnalyzer.analyze(
                     idea = request.instruction + if (request.projectContext.isBlank()) "" else "\n" + request.projectContext,
@@ -93,6 +100,7 @@ class LocalRulesEngine : AiEngine {
                 PromptBuilder.build(draft, request.tech, request.promptLanguage, request.isImageInspired)
             }
         }
+    }
 
     override suspend fun analyzeImage(bytes: ByteArray, mime: String, note: String): Result<ImageAnalysisResult> =
         Result.failure(UnsupportedOperationException(

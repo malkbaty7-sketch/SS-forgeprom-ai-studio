@@ -140,8 +140,8 @@ fun BackupScreen(container: AppContainer) {
 
         SectionCard("تصدير نسخة احتياطية", icon = Icons.Outlined.UploadFile) {
             Text(
-                "ملف JSON واحد يحتوي مشاريعك وموجّاتك وتحليلاتك وملفات المحرر. " +
-                    "لا يحتوي مفاتيح API ولا إعدادات الجهاز ولا مسودات غير محفوظة.",
+                "ملف JSON واحد يحتوي المشاريع وموجّهاتها ومحادثاتها ورسائلها وتحليلاتها وملفات المحرر. " +
+                    "لا يحتوي مفاتيح API ولا إعدادات الجهاز ولا المسودات غير المحفوظة.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

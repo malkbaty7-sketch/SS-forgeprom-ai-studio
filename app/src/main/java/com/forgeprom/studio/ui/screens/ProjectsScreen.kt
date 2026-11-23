@@ -353,7 +353,10 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
                         value = description, onValueChange = { description = it; formError = null }, enabled = !busy,
                         maxLines = 4, modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.project_description)) }, isError = descriptionError,
-                        supportingText = { if (descriptionError) Text(stringResource(R.string.project_description_limit)) }
+                        supportingText = {
+                            if (descriptionError) Text(stringResource(R.string.project_description_limit))
+                            else Text("اكتب ملخصاً ثابتاً عن التطبيق وتقنياته وقراراته؛ سيستخدمه مساعد المشروع في جميع محادثاته.")
+                        }
                     )
                     OutlinedTextField(
                         value = tagsText,

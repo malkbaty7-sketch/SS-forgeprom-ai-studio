@@ -53,6 +53,8 @@ import com.forgeprom.studio.ui.screens.EditorScreen
 import com.forgeprom.studio.ui.screens.ImageScreen
 import com.forgeprom.studio.ui.screens.ModelsScreen
 import com.forgeprom.studio.ui.screens.ProjectDetailScreen
+import com.forgeprom.studio.ui.screens.ProjectChatScreen
+import com.forgeprom.studio.ui.screens.ProjectConversationsScreen
 import com.forgeprom.studio.ui.screens.ProjectsScreen
 import com.forgeprom.studio.ui.screens.ResultScreen
 import com.forgeprom.studio.ui.screens.SettingsScreen
@@ -91,6 +93,8 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
         Destinations.RESULT -> "النتيجة"
         Destinations.IMAGE -> "الصورة"
         Destinations.PROJECT_DETAIL -> "تفاصيل المشروع"
+        Destinations.PROJECT_CONVERSATIONS -> "محادثات المشروع"
+        Destinations.PROJECT_CHAT -> "محادثة المشروع"
         Destinations.EDITOR -> "محرّر الموجّه"
         Destinations.BACKUP -> "النسخ الاحتياطي"
         Destinations.ABOUT -> "حول التطبيق"
@@ -205,7 +209,25 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
                             ProjectDetailScreen(
                                 container = container,
                                 projectId = id,
-                                onOpenEditor = { promptId -> nav.navigate(Destinations.editor(promptId)) }
+                                onOpenEditor = { promptId -> nav.navigate(Destinations.editor(promptId)) },
+                                onOpenConversations = { projectId -> nav.navigate(Destinations.projectConversations(projectId)) }
+                            )
+                        }
+                        composable(Destinations.PROJECT_CONVERSATIONS) { entry ->
+                            val projectId = entry.arguments?.getString("projectId")?.toLongOrNull() ?: 0L
+                            ProjectConversationsScreen(
+                                container = container,
+                                projectId = projectId,
+                                onOpenConversation = { id -> nav.navigate(Destinations.projectChat(id)) }
+                            )
+                        }
+                        composable(Destinations.PROJECT_CHAT) { entry ->
+                            val conversationId = entry.arguments?.getString("conversationId")?.toLongOrNull() ?: 0L
+                            ProjectChatScreen(
+                                container = container,
+                                conversationId = conversationId,
+                                onOpenModels = { nav.navigate(Destinations.MODELS) },
+                                onOpenSettings = { nav.navigate(Destinations.SETTINGS) }
                             )
                         }
                         composable(Destinations.EDITOR) { entry ->

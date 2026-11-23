@@ -7,6 +7,8 @@ import com.forgeprom.studio.core.data.ForgepromDatabase
 import com.forgeprom.studio.core.data.ImageAnalysisEntity
 import com.forgeprom.studio.core.data.ProjectEntity
 import com.forgeprom.studio.core.data.PromptEntity
+import com.forgeprom.studio.core.data.ProjectConversationEntity
+import com.forgeprom.studio.core.data.ProjectMessageEntity
 import com.forgeprom.studio.domain.ArabicSearch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,7 +41,9 @@ class BackupRepository(private val db: ForgepromDatabase) {
                 prompts = db.promptDao().allOnce().map { it.toBackup() },
                 analyses = db.analysisDao().allOnce().map { it.toBackup() },
                 editorFiles = db.editorFileDao().allOnce().map { it.toBackup() },
-                imageAnalyses = db.imageAnalysisDao().allOnce().map { it.toBackup() }
+                imageAnalyses = db.imageAnalysisDao().allOnce().map { it.toBackup() },
+                conversations = db.projectConversationDao().allOnce().map { it.toBackup() },
+                messages = db.projectMessageDao().allOnce().map { it.toBackup() }
             )
             document.toJson()
         }
@@ -152,6 +156,35 @@ class BackupRepository(private val db: ForgepromDatabase) {
                 )
                 attachmentsRestored++
             }
+
+            val conversationIds = HashMap<Long, Long>()
+            for (conversation in document.conversations) {
+                val projectId = idMap[conversation.projectId] ?: continue
+                val now = System.currentTimeMillis()
+                val newId = db.projectConversationDao().insert(
+                    ProjectConversationEntity(
+                        projectId = projectId,
+                        title = conversation.title,
+                        createdAt = conversation.createdAt.takeIf { it > 0 } ?: now,
+                        updatedAt = conversation.updatedAt.takeIf { it > 0 } ?: now
+                    )
+                )
+                conversationIds[conversation.id] = newId
+                attachmentsRestored++
+            }
+            for (message in document.messages) {
+                val conversationId = conversationIds[message.conversationId] ?: continue
+                if (message.role !in setOf("user", "assistant")) continue
+                db.projectMessageDao().insert(
+                    ProjectMessageEntity(
+                        conversationId = conversationId,
+                        role = message.role,
+                        content = message.content,
+                        createdAt = message.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis()
+                    )
+                )
+                attachmentsRestored++
+            }
         }
 
         RestoreReport(
@@ -192,4 +225,12 @@ private fun ImageAnalysisEntity.toBackup(): BackupImageAnalysis = BackupImageAna
     id = id, projectId = projectId, screenType = screenType, componentsJson = componentsJson,
     colorsJson = colorsJson, layout = layout, statesJson = statesJson,
     assumptionsJson = assumptionsJson, confidence = confidence, createdAt = createdAt
+)
+
+private fun ProjectConversationEntity.toBackup(): BackupConversation = BackupConversation(
+    id = id, projectId = projectId, title = title, createdAt = createdAt, updatedAt = updatedAt
+)
+
+private fun ProjectMessageEntity.toBackup(): BackupMessage = BackupMessage(
+    id = id, conversationId = conversationId, role = role, content = content, createdAt = createdAt
 )
