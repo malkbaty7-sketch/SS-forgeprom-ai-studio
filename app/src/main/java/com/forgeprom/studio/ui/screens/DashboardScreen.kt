@@ -69,7 +69,8 @@ fun DashboardScreen(
     onCreate: () -> Unit,
     onProjects: () -> Unit,
     onImage: () -> Unit,
-    onAbout: () -> Unit
+    onAbout: () -> Unit,
+    onPromptHistory: () -> Unit
 ) {
     var retry by remember { mutableStateOf(0) }
     val source = remember(container) { container.db.activityDao().recent(10) }
@@ -129,6 +130,10 @@ fun DashboardScreen(
                 compact = true,
                 modifier = Modifier.weight(1f)
             )
+        }
+        OutlinedButton(onClick = onPromptHistory, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Outlined.History, contentDescription = null)
+            Text("الموجهات السابقة المحفوظة", Modifier.padding(start = 8.dp))
         }
 
         SectionCard("آخر النشاطات", icon = Icons.Outlined.History) {
