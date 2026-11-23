@@ -423,7 +423,7 @@ fun ProjectChatScreen(
             }
         }
 
-        if (project.description.isBlank()) {
+        if (project?.description.isNullOrBlank()) {
             Text(
                 "ذاكرة المشروع الأساسية فارغة. أضف وصفاً أو متطلبات من تفاصيل المشروع ليستخدمها المساعد في كل محادثة.",
                 style = MaterialTheme.typography.bodySmall,
