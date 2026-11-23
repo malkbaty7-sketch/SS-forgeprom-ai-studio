@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +49,7 @@ import com.forgeprom.studio.core.data.ProjectConversationEntity
 import com.forgeprom.studio.core.data.ProjectEntity
 import com.forgeprom.studio.core.data.ProjectMessageEntity
 import com.forgeprom.studio.ui.components.EmptyState
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenHeading
 import com.forgeprom.studio.ui.components.ScreenNotice
 import com.forgeprom.studio.ui.components.observeScreenData
@@ -109,10 +109,10 @@ fun ProjectConversationsScreen(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            Button(
+            PrimaryActionButton(
                 enabled = !creating,
                 onClick = {
-                    if (creating) return@Button
+                    if (creating) return@PrimaryActionButton
                     creating = true
                     actionError = null
                     scope.launch {
@@ -528,7 +528,7 @@ fun ProjectChatScreen(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { send() })
             )
-            Button(
+            PrimaryActionButton(
                 onClick = { send() },
                 enabled = sendingEnabled && draft.isNotBlank(),
                 modifier = Modifier.height(56.dp)

@@ -1,6 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
 import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenHeading
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -12,8 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -57,6 +58,8 @@ import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Verified
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material.icons.outlined.Tune
 
 /**
  * R11 — الإعدادات: الثيم، لغة الموجه، بوابة الموافقة، المفاتيح المشفرة، تشخيص الميزات.
@@ -84,7 +87,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ScreenHeading("الإعدادات")
+        ScreenHeading("الإعدادات", icon = Icons.Outlined.Tune)
 
         key(settings.cloudConsent, billingRevision) {
             GatewayInvoices(container, settings.cloudConsent)
@@ -172,11 +175,11 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
                 label = { Text("اسم النموذج") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Button(onClick = {
+            PrimaryActionButton(onClick = {
                 val policyError = EndpointPolicy.validateBaseUrl(baseUrl)
                 if (policyError != null) {
                     baseUrlError = policyError
-                    return@Button
+                    return@PrimaryActionButton
                 }
                 baseUrlError = null
                 if (geminiKey.isNotBlank()) container.apiKeys.setGeminiKey(geminiKey.trim())
@@ -187,7 +190,10 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
                 openAiKey = ""
                 billingRevision++
                 Toast.makeText(context, "تم الحفظ المشفر", Toast.LENGTH_SHORT).show()
-            }) { Text("حفظ") }
+            }) {
+                Icon(Icons.Outlined.Save, contentDescription = null)
+                Text("حفظ", modifier = Modifier.padding(start = 8.dp))
+            }
             Text(
                 "لا تُعرض المفاتيح المحفوظة — الحقول فارغة افتراضياً. اتركها فارغة للاحتفاظ بالقيم الحالية.",
                 style = MaterialTheme.typography.bodySmall,
@@ -226,7 +232,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
                 title = { Text("تسجيل الخروج؟") },
                 text = { Text("سيظل حسابك محفوظاً على هذا الجهاز، ويمكنك تسجيل الدخول مجدداً بكلمة المرور.") },
                 confirmButton = {
-                    Button(onClick = { showSignOutConfirmation = false; onSignOut() }) { Text("تسجيل الخروج") }
+                    PrimaryActionButton(onClick = { showSignOutConfirmation = false; onSignOut() }) { Text("تسجيل الخروج") }
                 },
                 dismissButton = {
                     OutlinedButton(onClick = { showSignOutConfirmation = false }) { Text("إلغاء") }

@@ -31,6 +31,7 @@ import com.forgeprom.studio.domain.SceneTone
 import com.forgeprom.studio.domain.SceneStyle
 import com.forgeprom.studio.domain.TokenEstimator
 import com.forgeprom.studio.ui.components.TokenEstimateCard
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.domain.SceneLighting
 import org.json.JSONArray
 import org.json.JSONObject
@@ -482,8 +483,8 @@ internal fun SceneDraftDialog(
             }
         },
         confirmButton = {
-            if (draft != null) Button(onClick = { onInsert(draft) }) { Text("إلحاق بالمحرّر") }
-            else Button(enabled = !busy && brief.isNotBlank(), onClick = {
+            if (draft != null) PrimaryActionButton(onClick = { onInsert(draft) }) { Text("إلحاق بالمحرّر") }
+            else PrimaryActionButton(enabled = !busy && brief.isNotBlank(), onClick = {
                 busy = true
                 message = ""
                 val request = SceneDraft.request(brief, outgoingNotes, direction, format)

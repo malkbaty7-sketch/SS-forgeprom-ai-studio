@@ -1,6 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
 import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenHeading
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import com.forgeprom.studio.ui.i18n.Text
@@ -56,7 +57,7 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ScreenHeading("إنشاء موجه جديد")
+        ScreenHeading("إنشاء موجه جديد", icon = Icons.Outlined.AutoAwesome)
 
         OutlinedTextField(
             value = idea,
@@ -111,9 +112,9 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             }
         }
 
-        Button(
+        PrimaryActionButton(
             onClick = {
-                if (idea.isBlank()) return@Button
+                if (idea.isBlank()) return@PrimaryActionButton
                 scope.launch {
                     val draft = IdeaAnalyzer.analyze(idea, goal, tech)
                     container.session.clear()
@@ -128,7 +129,8 @@ fun CreateScreen(container: AppContainer, onAnalyzed: () -> Unit) {
             enabled = idea.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("تحليل وتوليد البرومبت")
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+            Text("تحليل وتوليد البرومبت", modifier = Modifier.padding(start = 8.dp))
         }
 
         Text(

@@ -44,6 +44,7 @@ import com.forgeprom.studio.ui.components.SectionCard
 import com.forgeprom.studio.ui.components.SkeletonCard
 import com.forgeprom.studio.ui.components.StatCard
 import com.forgeprom.studio.ui.components.StatusChip
+import com.forgeprom.studio.ui.components.WelcomeHeroCard
 import com.forgeprom.studio.ui.components.observeScreenData
 import com.forgeprom.studio.ui.i18n.Text
 import kotlinx.coroutines.Dispatchers
@@ -90,15 +91,16 @@ fun DashboardScreen(
     ) {
         ScreenHeading(
             "Forgeprom Code Studio",
-            subtitle = "حوّل فكرتك إلى موجه (برومبت) هندسي احترافي — جاهز للنسخ في منصات بناء الكود."
+            subtitle = "مساحة عملك الذكية لبناء أفكارك.",
+            icon = Icons.Outlined.AutoAwesome
         )
 
-        QuickActionCard(
+        WelcomeHeroCard(
+            title = "من الفكرة إلى خطة تنفيذ واضحة",
+            subtitle = "حلّل طلبك محلياً، راجع الافتراضات، ثم أنشئ موجهاً احترافياً جاهزاً.",
+            actionLabel = "ابدأ إنشاء موجه",
             icon = Icons.Outlined.AutoAwesome,
-            title = "إنشاء موجه جديد",
-            subtitle = "وصف حر بالعربية → تحليل → برومبت جاهز",
-            onClick = onCreate,
-            highlighted = true
+            onAction = onCreate
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

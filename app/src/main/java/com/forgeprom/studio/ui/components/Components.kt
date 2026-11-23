@@ -13,20 +13,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -41,6 +46,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -55,6 +61,37 @@ import com.forgeprom.studio.ui.theme.ForgepromStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.collect
+
+/** زر أساسي موحّد: ارتفاع مناسب للمس، زوايا واضحة، وارتفاع بصري بارز. */
+@Composable
+fun PrimaryActionButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 52.dp),
+        enabled = enabled,
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        elevation = ButtonDefaults.buttonElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 1.dp,
+            focusedElevation = 3.dp,
+            hoveredElevation = 4.dp,
+            disabledElevation = 0.dp
+        ),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        content = content
+    )
+}
 
 /** شارة أيقونة مربّعة مستديرة — العنصر البصري المتكرر في كل البطاقات. */
 @Composable
@@ -88,6 +125,7 @@ fun SectionCard(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -202,6 +240,60 @@ fun StatCard(
     }
 }
 
+/** رأس ترحيبي بارز يوجّه المستخدم إلى الإجراء الأساسي في الشاشة الرئيسية. */
+@Composable
+fun WelcomeHeroCard(
+    title: String,
+    subtitle: String,
+    actionLabel: String,
+    icon: ImageVector,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.extraLarge)
+            .background(Brush.linearGradient(
+                listOf(Color(0xFF5B21B6), Color(0xFF3B5BDB))
+            ))
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        IconBadge(
+            icon,
+            size = 52.dp,
+            container = Color.White.copy(alpha = 0.16f),
+            tint = Color.White
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White
+        )
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White.copy(alpha = 0.9f)
+        )
+        Button(
+            onClick = onAction,
+            modifier = Modifier.heightIn(min = 50.dp),
+            shape = RoundedCornerShape(15.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.White,
+                contentColor = Color(0xFF4A148C)
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+        ) {
+            Icon(Icons.Outlined.AutoAwesome, contentDescription = null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.size(8.dp))
+            Text(actionLabel, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
 /** بطاقة إجراء سريع في الرئيسية */
 @Composable
 fun QuickActionCard(
@@ -221,6 +313,7 @@ fun QuickActionCard(
             containerColor = if (highlighted) MaterialTheme.colorScheme.primaryContainer
             else MaterialTheme.colorScheme.surfaceContainerLow
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp, pressedElevation = 3.dp, hoveredElevation = 2.dp),
         border = BorderStroke(
             1.dp,
             if (highlighted) Color.Transparent else MaterialTheme.colorScheme.outlineVariant
@@ -371,19 +464,34 @@ fun PhaseNote(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ScreenHeading(title: String, subtitle: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.semantics { heading() }
-        )
-        if (subtitle != null) {
+fun ScreenHeading(
+    title: String,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        icon?.let { IconBadge(it, size = 42.dp) }
+        Column(
+            if (icon != null) Modifier.weight(1f) else Modifier,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                title,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.semantics { heading() }
             )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

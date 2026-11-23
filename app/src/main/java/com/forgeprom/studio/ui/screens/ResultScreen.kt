@@ -1,6 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
 import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenNotice
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -135,7 +138,7 @@ fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
                     )
                     if (saving) ScreenNotice("جارٍ الحفظ في المشروع…", loading = true)
                     if (saveError) ScreenNotice("تعذّر الحفظ. أعد المحاولة من زر الحفظ؛ سيبقى النص كما هو.")
-                    Button(
+                    PrimaryActionButton(
                         enabled = !saving && promptText.isNotBlank(),
                         onClick = {
                             saving = true
@@ -168,7 +171,10 @@ fun ResultScreen(container: AppContainer, onSaved: (Long) -> Unit) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("حفظ في مشروع جديد") }
+                    ) {
+                        Icon(Icons.Outlined.Save, contentDescription = null)
+                        Text("حفظ في مشروع جديد", modifier = Modifier.padding(start = 8.dp))
+                    }
 
                     ActionGroup {
                         OutlinedButton(onClick = { export(context, container, promptText, "md") }) { Text("Markdown") }

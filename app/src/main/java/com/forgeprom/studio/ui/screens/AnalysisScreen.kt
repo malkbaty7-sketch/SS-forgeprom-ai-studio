@@ -1,6 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
 import com.forgeprom.studio.ui.components.ScreenHeading
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenNotice
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import com.forgeprom.studio.ui.i18n.Text
@@ -52,7 +55,7 @@ fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ScreenHeading("تحليل الفكرة")
+        ScreenHeading("تحليل الفكرة", icon = Icons.Outlined.AutoAwesome)
         Text(
             "النية المكتشفة: " + draft.intent,
             style = MaterialTheme.typography.titleSmall,
@@ -92,7 +95,7 @@ fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
         if (busy) {
             CircularProgressIndicator()
         } else {
-            Button(
+            PrimaryActionButton(
                 onClick = {
                     scope.launch {
                         busy = true
@@ -142,7 +145,8 @@ fun AnalysisScreen(container: AppContainer, onApproved: () -> Unit) {
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("اعتماد وتوليد البرومبت")
+                Icon(Icons.Outlined.AutoAwesome, contentDescription = null)
+                Text("اعتماد وتوليد البرومبت", modifier = Modifier.padding(start = 8.dp))
             }
         }
     }
