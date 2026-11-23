@@ -3,6 +3,7 @@ package com.forgeprom.studio.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.forgeprom.studio.ui.components.ScreenHeading
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -179,8 +179,8 @@ fun ProjectsScreen(container: AppContainer, onOpen: (Long) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ScreenHeading("المشاريع")
-            Button(enabled = !busy, onClick = { openForm() }) {
+            ScreenHeading("المشاريع", icon = Icons.Filled.Folder, modifier = Modifier.weight(1f))
+            PrimaryActionButton(enabled = !busy, onClick = { openForm() }) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Text(" جديد")
             }

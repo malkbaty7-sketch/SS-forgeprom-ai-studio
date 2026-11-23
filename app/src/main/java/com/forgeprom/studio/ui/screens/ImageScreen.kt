@@ -1,6 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
 import com.forgeprom.studio.ui.components.ActionGroup
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenHeading
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,9 +14,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -74,7 +78,7 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ScreenHeading("تحليل صورة واجهة")
+        ScreenHeading("تحليل صورة واجهة", icon = Icons.Outlined.Image)
         Text(
             "استخرج وصفًا بصريًا أوليًا للاستلهام من صورة التصميم.",
             style = MaterialTheme.typography.bodyMedium,
@@ -99,19 +103,19 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
             Text("ألتزم أن الاستخدام استلهام فقط ولا أنسخ تصميباً محمياً", style = MaterialTheme.typography.bodySmall)
         }
 
-        Button(
+        PrimaryActionButton(
             onClick = {
                 error = null
                 result = null
                 val uri = imageUri
-                if (uri == null) { error = "اختر صورة أولاً"; return@Button }
-                if (!legalOnly) { error = "يجب الإقرار بأن الاستخدام استلهام فقط"; return@Button }
+                if (uri == null) { error = "اختر صورة أولاً"; return@PrimaryActionButton }
+                if (!legalOnly) { error = "يجب الإقرار بأن الاستخدام استلهام فقط"; return@PrimaryActionButton }
                 if (cloudMode && !settings.cloudConsent) {
                     error = "موافقة السحابة غير ممنوحة — فعّلها من الإعدادات أولاً (لا يُرسل شيء دون موافقة)"
-                    return@Button
+                    return@PrimaryActionButton
                 }
-                if (cloudMode && !Connectivity.isOnline(context)) { error = "لا اتصال بالإنترنت — التحليل سحابي"; return@Button }
-                if (cloudMode && container.apiKeys.geminiKey().isBlank()) { error = "أدخل مفتاح Gemini من الإعدادات"; return@Button }
+                if (cloudMode && !Connectivity.isOnline(context)) { error = "لا اتصال بالإنترنت — التحليل سحابي"; return@PrimaryActionButton }
+                if (cloudMode && container.apiKeys.geminiKey().isBlank()) { error = "أدخل مفتاح Gemini من الإعدادات"; return@PrimaryActionButton }
 
                 val useCloud = cloudMode
                 busy = true
@@ -140,7 +144,10 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
             },
             enabled = !busy,
             modifier = Modifier.fillMaxWidth()
-        ) { Text(if (busy) "جارٍ التحليل…" else if (cloudMode) "تحليل الصورة عبر Gemini" else "تحليل الصورة محليًا") }
+        ) {
+            Icon(Icons.Outlined.Image, contentDescription = null)
+            Text(if (busy) "جارٍ التحليل…" else if (cloudMode) "تحليل الصورة عبر Gemini" else "تحليل الصورة محليًا", modifier = Modifier.padding(start = 8.dp))
+        }
 
         if (busy) CircularProgressIndicator()
         error?.let {
@@ -164,7 +171,7 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
                 }
             }
             Text("عند اعتماد التحليل، قد يُرسل الوصف إلى محرك التوليد السحابي إذا اخترته وفعّلت الموافقة. لا تُرفق الصورة الأصلية بطلب التوليد.")
-            Button(
+            PrimaryActionButton(
                 onClick = {
                     val s = container.session
                     s.clear()
@@ -179,7 +186,10 @@ fun ImageScreen(container: AppContainer, onUseAnalysis: () -> Unit) {
                     onUseAnalysis()
                 },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("اعتماد التحليل وفتح شاشة التحليل") }
+            ) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null)
+                Text("اعتماد التحليل وفتح شاشة التحليل", modifier = Modifier.padding(start = 8.dp))
+            }
         }
 
         val f = FeatureRegistry.byId("IMAGE.ANALYZE")

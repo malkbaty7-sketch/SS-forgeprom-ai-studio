@@ -1,12 +1,13 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.PrimaryActionButton
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import com.forgeprom.studio.ui.i18n.Text
@@ -41,7 +42,7 @@ internal fun LocalScriptDialog(onDismiss: () -> Unit) {
             }
         },
         confirmButton = {
-            Button(enabled = source.isNotBlank(), onClick = {
+            PrimaryActionButton(enabled = source.isNotBlank(), onClick = {
                 output = null
                 error = null
                 try {

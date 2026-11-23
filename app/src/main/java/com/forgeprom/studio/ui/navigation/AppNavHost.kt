@@ -140,7 +140,10 @@ fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
                 }
             },
             bottomBar = {
-                if (!wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
+                if (!wide) NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    tonalElevation = 4.dp
+                ) {
                     tabs.forEach { tab ->
                         val selected = currentRoute == tab.route
                         NavigationBarItem(

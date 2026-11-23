@@ -3,10 +3,14 @@ package com.forgeprom.studio.ui.screens
 import androidx.activity.compose.BackHandler
 import com.forgeprom.studio.core.editor.EditorDraft
 import com.forgeprom.studio.ui.components.ScreenNotice
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ActionGroup
 import android.widget.Toast
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Save
+import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -29,7 +33,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -248,7 +251,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                         maxLines = 2
                     )
                     ActionGroup {
-                        Button(onClick = {
+                        PrimaryActionButton(onClick = {
                             undo = field
                             val updated = if (field.text.isBlank()) ready.content else field.text + "\n\n" + ready.content
                             field = TextFieldValue(updated, TextRange(updated.length))
@@ -290,7 +293,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     ActionGroup {
-                        Button(onClick = {
+                        PrimaryActionButton(onClick = {
                             if (draft.title.isNotBlank()) title = draft.title
                             field = TextFieldValue(draft.content)
                             container.drafts.clear(promptId)
@@ -350,7 +353,7 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
         if (saving) ScreenNotice("جارٍ حفظ الموجّه…", loading = true)
         if (saveError) ScreenNotice("تعذّر حفظ الموجّه. لم تُفقد تعديلاتك؛ اضغط حفظ لإعادة المحاولة.")
         ActionGroup {
-            Button(enabled = !saving && title.isNotBlank() && content.isNotBlank(), onClick = {
+            PrimaryActionButton(enabled = !saving && title.isNotBlank() && content.isNotBlank(), onClick = {
                 saving = true
                 saveError = false
                 val updated = prompt.copy(title = title.trim(), content = content, updatedAt = System.currentTimeMillis())
@@ -385,7 +388,10 @@ fun EditorScreen(container: AppContainer, promptId: Long, onDone: () -> Unit) {
                         saving = false
                     }
                 }
-            }) { Text("حفظ") }
+            }) {
+                Icon(Icons.Outlined.Save, contentDescription = null)
+                Text("حفظ", modifier = Modifier.padding(start = 8.dp))
+            }
             OutlinedButton(onClick = {
                 if (Exporter.copyToClipboard(context, content))
                     Toast.makeText(context, "تم النسخ إلى الحافظة", Toast.LENGTH_SHORT).show()
@@ -521,8 +527,8 @@ private fun SmartEditDialog(
         },
         confirmButton = {
             val replacement = preview
-            if (replacement != null) Button(onClick = { onApply(replacement) }) { Text("تطبيق") }
-            else Button(
+            if (replacement != null) PrimaryActionButton(onClick = { onApply(replacement) }) { Text("تطبيق") }
+            else PrimaryActionButton(
                 enabled = !busy && direction.isNotBlank() && edit.selection.length <= 8_000,
                 onClick = {
                     busy = true

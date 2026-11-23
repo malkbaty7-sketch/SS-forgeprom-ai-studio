@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -88,7 +90,7 @@ fun ModelsScreen(container: AppContainer) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ScreenHeading("المحركات")
+        ScreenHeading("المحركات", icon = Icons.Outlined.Memory)
 
         if (statusError) ScreenNotice("تعذّر قراءة حالة المحركات.", action = "إعادة المحاولة") { modelRevision++ }
         else if (statuses == null) ScreenNotice("جارٍ قراءة حالة المحركات…", loading = true)

@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.PrimaryActionButton
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PersonAdd
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -86,7 +87,7 @@ fun AuthRoot(container: AppContainer) {
             ) {
                 Text("تعذر تحميل الحساب", style = MaterialTheme.typography.headlineSmall)
                 Text(loadError.orEmpty(), textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 16.dp))
-                Button(onClick = { retry++ }) { Text("إعادة المحاولة") }
+                PrimaryActionButton(onClick = { retry++ }) { Text("إعادة المحاولة") }
             }
         }
         else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -268,7 +269,7 @@ fun AuthScreen(
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
                 )
 
-                Button(onClick = ::submit, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                PrimaryActionButton(onClick = ::submit, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
                     if (busy) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
@@ -276,7 +277,14 @@ fun AuthScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                         Text("جارٍ التحقق…")
-                    } else Text(if (mode == AuthMode.SIGN_UP) "إنشاء الحساب" else "تسجيل الدخول")
+                    } else {
+                        Icon(
+                            if (mode == AuthMode.SIGN_UP) Icons.Outlined.PersonAdd else Icons.Outlined.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(if (mode == AuthMode.SIGN_UP) "إنشاء الحساب" else "تسجيل الدخول")
+                    }
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(

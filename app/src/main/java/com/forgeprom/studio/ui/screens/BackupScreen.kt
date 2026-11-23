@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import com.forgeprom.studio.ui.i18n.Text
@@ -30,6 +30,7 @@ import com.forgeprom.studio.core.backup.BackupDocument
 import com.forgeprom.studio.core.backup.BackupRules
 import com.forgeprom.studio.core.util.UriText
 import com.forgeprom.studio.ui.components.PhaseNote
+import com.forgeprom.studio.ui.components.PrimaryActionButton
 import com.forgeprom.studio.ui.components.ScreenHeading
 import com.forgeprom.studio.ui.components.ScreenNotice
 import com.forgeprom.studio.ui.components.SectionCard
@@ -132,7 +133,7 @@ fun BackupScreen(container: AppContainer) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ScreenHeading("النسخ الاحتياطي والاستعادة")
+        ScreenHeading("النسخ الاحتياطي والاستعادة", icon = Icons.Outlined.UploadFile)
 
         if (busy) ScreenNotice("جارٍ تنفيذ العملية…", loading = true)
         message?.let { ScreenNotice(it) }
@@ -145,11 +146,14 @@ fun BackupScreen(container: AppContainer) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(
+            PrimaryActionButton(
                 enabled = !busy,
                 onClick = { exportLauncher.launch("forgeprom-backup-" + LocalDate.now() + ".json") },
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("تصدير نسخة احتياطية") }
+            ) {
+                Icon(Icons.Outlined.UploadFile, contentDescription = null)
+                Text("تصدير نسخة احتياطية", modifier = Modifier.padding(start = 8.dp))
+            }
         }
 
         SectionCard("استعادة من ملف", icon = Icons.Outlined.Download) {

@@ -1,5 +1,7 @@
 package com.forgeprom.studio.ui.screens
 
+import com.forgeprom.studio.ui.components.PrimaryActionButton
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -64,7 +65,7 @@ internal fun WebSearchDialog(container: AppContainer, onDismiss: () -> Unit) {
         },
         confirmButton = {
             val trimmed = query.trim()
-            Button(enabled = !busy && trimmed.isNotEmpty() && trimmed.none { it.code < 32 || it.code == 127 }, onClick = {
+            PrimaryActionButton(enabled = !busy && trimmed.isNotEmpty() && trimmed.none { it.code < 32 || it.code == 127 }, onClick = {
                 busy = true
                 results = null
                 message = ""
