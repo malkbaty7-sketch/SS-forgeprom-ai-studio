@@ -8,8 +8,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
- * قاعدة البيانات المحلية — Room، الإصدار 2.
- * v2 يضيف سجل إصدارات الموجّهات (لقطات نصية عند الحفظ).
+ * قاعدة البيانات المحلية — Room، الإصدار 3.
+ * v2 أضاف سجل الإصدارات؛ v3 يضيف محادثات المشروع ورسائلها.
  */
 @Database(
     entities = [
@@ -19,9 +19,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ActivityEntity::class,
         EditorFileEntity::class,
         ImageAnalysisEntity::class,
-        PromptVersionEntity::class
+        PromptVersionEntity::class,
+        ProjectConversationEntity::class,
+        ProjectMessageEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class ForgepromDatabase : RoomDatabase() {
@@ -32,6 +34,8 @@ abstract class ForgepromDatabase : RoomDatabase() {
     abstract fun editorFileDao(): EditorFileDao
     abstract fun imageAnalysisDao(): ImageAnalysisDao
     abstract fun promptVersionDao(): PromptVersionDao
+    abstract fun projectConversationDao(): ProjectConversationDao
+    abstract fun projectMessageDao(): ProjectMessageDao
 
     companion object {
 
@@ -48,9 +52,30 @@ abstract class ForgepromDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `project_conversations` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`projectId` INTEGER NOT NULL, `title` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`projectId`) REFERENCES `projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_project_conversations_projectId` ON `project_conversations` (`projectId`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `project_messages` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`conversationId` INTEGER NOT NULL, `role` TEXT NOT NULL, " +
+                        "`content` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`conversationId`) REFERENCES `project_conversations`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_project_messages_conversationId_createdAt_id` ON `project_messages` (`conversationId`, `createdAt`, `id`)")
+            }
+        }
+
         fun build(context: Context): ForgepromDatabase =
             Room.databaseBuilder(context, ForgepromDatabase::class.java, "forgeprom.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
     }

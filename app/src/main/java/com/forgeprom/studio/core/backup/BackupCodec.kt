@@ -3,11 +3,14 @@ package com.forgeprom.studio.core.backup
 /** حدود صريحة تمنع ملفات ضخمة أو مشوّهة من إغراق الذاكرة أو قاعدة البيانات. */
 object BackupRules {
     const val FORMAT = "forgeprom.backup"
-    const val VERSION = 1
+    const val VERSION = 2
+    const val PREVIOUS_VERSION = 1
     const val MAX_FILE_CHARS = 8 * 1024 * 1024
     const val MAX_PROJECTS = 2_000
     const val MAX_PROMPTS = 20_000
     const val MAX_CHILDREN = 20_000
+    const val MAX_CONVERSATIONS = 20_000
+    const val MAX_MESSAGES = 100_000
     const val MAX_NAME_CHARS = 200
     const val MAX_TEXT_CHARS = 400_000
     const val MAX_JSON_CHARS = 400_000
@@ -76,6 +79,22 @@ data class BackupImageAnalysis(
     val createdAt: Long = 0L
 )
 
+data class BackupConversation(
+    val id: Long,
+    val projectId: Long,
+    val title: String,
+    val createdAt: Long = 0L,
+    val updatedAt: Long = 0L
+)
+
+data class BackupMessage(
+    val id: Long,
+    val conversationId: Long,
+    val role: String,
+    val content: String,
+    val createdAt: Long = 0L
+)
+
 /**
  * مستند النسخ الاحتياطي — يعرض مشاريع المستخدم وموجّاته وملحقاتها.
  *
@@ -87,12 +106,14 @@ data class BackupDocument(
     val prompts: List<BackupPrompt> = emptyList(),
     val analyses: List<BackupAnalysis> = emptyList(),
     val editorFiles: List<BackupEditorFile> = emptyList(),
-    val imageAnalyses: List<BackupImageAnalysis> = emptyList()
+    val imageAnalyses: List<BackupImageAnalysis> = emptyList(),
+    val conversations: List<BackupConversation> = emptyList(),
+    val messages: List<BackupMessage> = emptyList()
 ) {
 
     val isEmpty: Boolean
         get() = projects.isEmpty() && prompts.isEmpty() && analyses.isEmpty() &&
-            editorFiles.isEmpty() && imageAnalyses.isEmpty()
+            editorFiles.isEmpty() && imageAnalyses.isEmpty() && conversations.isEmpty() && messages.isEmpty()
 
     fun toJson(): String = SimpleJson.stringify(
         linkedMapOf<String, Any?>(
@@ -103,7 +124,9 @@ data class BackupDocument(
             "prompts" to prompts.map { it.toMap() },
             "analyses" to analyses.map { it.toMap() },
             "editorFiles" to editorFiles.map { it.toMap() },
-            "imageAnalyses" to imageAnalyses.map { it.toMap() }
+            "imageAnalyses" to imageAnalyses.map { it.toMap() },
+            "conversations" to conversations.map { it.toMap() },
+            "messages" to messages.map { it.toMap() }
         )
     )
 
@@ -116,18 +139,24 @@ data class BackupDocument(
             val format = root["format"] as? String
             require(format == BackupRules.FORMAT) { "Not a Forgeprom backup file" }
             val version = root.longField("version", 0L)
-            require(version == BackupRules.VERSION.toLong()) { "Unsupported backup version: $version" }
+            require(version in BackupRules.PREVIOUS_VERSION.toLong()..BackupRules.VERSION.toLong()) {
+                "Unsupported backup version: $version"
+            }
 
             val projectsRaw = root.listField("projects")
             val promptsRaw = root.listField("prompts")
             val analysesRaw = root.listField("analyses")
             val editorFilesRaw = root.listField("editorFiles")
             val imageAnalysesRaw = root.listField("imageAnalyses")
+            val conversationsRaw = root.listField("conversations")
+            val messagesRaw = root.listField("messages")
             require(projectsRaw.size <= BackupRules.MAX_PROJECTS) { "Too many projects" }
             require(promptsRaw.size <= BackupRules.MAX_PROMPTS) { "Too many prompts" }
             require(analysesRaw.size <= BackupRules.MAX_CHILDREN) { "Too many analyses" }
             require(editorFilesRaw.size <= BackupRules.MAX_CHILDREN) { "Too many editor files" }
             require(imageAnalysesRaw.size <= BackupRules.MAX_CHILDREN) { "Too many image analyses" }
+            require(conversationsRaw.size <= BackupRules.MAX_CONVERSATIONS) { "Too many conversations" }
+            require(messagesRaw.size <= BackupRules.MAX_MESSAGES) { "Too many messages" }
 
             return BackupDocument(
                 exportedAt = root["exportedAt"] as? String ?: "",
@@ -137,6 +166,12 @@ data class BackupDocument(
                 editorFiles = editorFilesRaw.mapIndexed { i, item -> editorFile(item.objectField("editorFiles", i)) },
                 imageAnalyses = imageAnalysesRaw.mapIndexed { i, item ->
                     imageAnalysis(item.objectField("imageAnalyses", i))
+                },
+                conversations = conversationsRaw.mapIndexed { i, item ->
+                    conversation(item.objectField("conversations", i))
+                },
+                messages = messagesRaw.mapIndexed { i, item ->
+                    message(item.objectField("messages", i))
                 }
             )
         }
@@ -206,6 +241,22 @@ data class BackupDocument(
             confidence = m.doubleField("confidence", 0.0).coerceIn(0.0, 1.0).toFloat(),
             createdAt = m.longField("createdAt", 0L)
         )
+
+        private fun conversation(m: Map<String, Any?>): BackupConversation = BackupConversation(
+            id = m.longField("id", 0L),
+            projectId = m.longField("projectId", 0L),
+            title = m.textField("title", BackupRules.MAX_NAME_CHARS),
+            createdAt = m.longField("createdAt", 0L),
+            updatedAt = m.longField("updatedAt", 0L)
+        )
+
+        private fun message(m: Map<String, Any?>): BackupMessage = BackupMessage(
+            id = m.longField("id", 0L),
+            conversationId = m.longField("conversationId", 0L),
+            role = m.textField("role", 16),
+            content = m.textField("content", BackupRules.MAX_TEXT_CHARS),
+            createdAt = m.longField("createdAt", 0L)
+        )
     }
 }
 
@@ -237,6 +288,16 @@ private fun BackupImageAnalysis.toMap(): Map<String, Any?> = linkedMapOf(
     "componentsJson" to componentsJson, "colorsJson" to colorsJson, "layout" to layout,
     "statesJson" to statesJson, "assumptionsJson" to assumptionsJson,
     "confidence" to confidence, "createdAt" to createdAt
+)
+
+private fun BackupConversation.toMap(): Map<String, Any?> = linkedMapOf(
+    "id" to id, "projectId" to projectId, "title" to title,
+    "createdAt" to createdAt, "updatedAt" to updatedAt
+)
+
+private fun BackupMessage.toMap(): Map<String, Any?> = linkedMapOf(
+    "id" to id, "conversationId" to conversationId, "role" to role,
+    "content" to content, "createdAt" to createdAt
 )
 
 private fun Any?.objectField(field: String, index: Int): Map<String, Any?> {

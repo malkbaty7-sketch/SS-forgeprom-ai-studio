@@ -112,6 +112,14 @@ class LocalNeuralEngine(context: Context) : AiEngine {
 }
 
 internal fun localNeuralPrompt(request: GenerationRequest): String = buildString {
+    if (request.assistantSystemInstruction != null) {
+        appendLine(request.assistantSystemInstruction)
+        request.conversationHistory.takeLast(6).forEach { turn ->
+            appendLine(if (turn.role == "assistant") "اقتراح سابق من المساعد (غير معتمد): ${turn.content}" else "رسالة سابقة للمستخدم: ${turn.content}")
+        }
+        appendLine("طلب المستخدم الحالي: ${request.instruction}")
+        return@buildString
+    }
     appendLine(request.cinematicSystem ?: "Create a structured, actionable prompt for a coding assistant. Return only the prompt.")
     if (request.cinematicSystem == null) appendLine(when (request.promptLanguage) {
         PromptLanguage.AR -> "Write the result in Arabic."

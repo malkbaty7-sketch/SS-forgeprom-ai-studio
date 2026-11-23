@@ -54,6 +54,9 @@ interface PromptDao {
     @Query("SELECT * FROM prompts WHERE id = :id")
     suspend fun byId(id: Long): PromptEntity?
 
+    @Query("SELECT * FROM prompts WHERE projectId = :projectId ORDER BY updatedAt DESC LIMIT 4")
+    suspend fun allForProject(projectId: Long): List<PromptEntity>
+
     @Insert
     suspend fun insert(prompt: PromptEntity): Long
 
@@ -77,6 +80,9 @@ interface AnalysisDao {
 
     @Insert
     suspend fun insert(analysis: AnalysisEntity): Long
+
+    @Query("SELECT * FROM analyses WHERE projectId = :projectId ORDER BY createdAt DESC LIMIT 3")
+    suspend fun allForProject(projectId: Long): List<AnalysisEntity>
 
     @Query("SELECT * FROM analyses ORDER BY projectId, createdAt DESC")
     suspend fun allOnce(): List<AnalysisEntity>
@@ -102,6 +108,9 @@ interface EditorFileDao {
     @Query("SELECT * FROM editor_files WHERE id = :id")
     suspend fun byId(id: Long): EditorFileEntity?
 
+    @Query("SELECT * FROM editor_files WHERE projectId = :projectId ORDER BY updatedAt DESC LIMIT 3")
+    suspend fun allForProject(projectId: Long): List<EditorFileEntity>
+
     @Insert
     suspend fun insert(file: EditorFileEntity): Long
 
@@ -122,6 +131,9 @@ interface ImageAnalysisDao {
 
     @Insert
     suspend fun insert(analysis: ImageAnalysisEntity): Long
+
+    @Query("SELECT * FROM image_analyses WHERE projectId = :projectId ORDER BY createdAt DESC LIMIT 3")
+    suspend fun allForProject(projectId: Long): List<ImageAnalysisEntity>
 
     @Query("SELECT * FROM image_analyses ORDER BY projectId, createdAt DESC")
     suspend fun allOnce(): List<ImageAnalysisEntity>

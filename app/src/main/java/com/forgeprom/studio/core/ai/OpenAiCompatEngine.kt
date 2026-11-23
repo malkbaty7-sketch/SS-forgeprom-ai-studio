@@ -64,19 +64,27 @@ class OpenAiCompatEngine(
             runCatching {
                 val key = apiKeyStore.openAiKey()
                 require(key.isNotBlank()) { "مفتاح API غير مضبوط" }
-                val messages = JSONArray()
-                    .put(JSONObject().put("role", "system").put(
-                        "content",
-                        request.cinematicSystem ?: "You generate professional coding PROMPTS (not code) for AI code platforms. " +
-                            "Always include: role, objective, context, request type, tech stack, UI spec, states, interactions, accessibility, anti-bloat code quality constraints, acceptance criteria, output format. State assumptions explicitly."
-                    ))
-                    .put(JSONObject().put("role", "user").put(
+                val systemInstruction = request.assistantSystemInstruction ?: request.cinematicSystem ?:
+                    "You generate professional coding PROMPTS (not code) for AI code platforms. " +
+                    "Always include: role, objective, context, request type, tech stack, UI spec, states, interactions, accessibility, anti-bloat code quality constraints, acceptance criteria, output format. State assumptions explicitly."
+                val messages = JSONArray().put(
+                    JSONObject().put("role", "system").put("content", systemInstruction)
+                )
+                if (request.assistantSystemInstruction != null) {
+                    request.conversationHistory.takeLast(6).forEach { turn ->
+                        val role = if (turn.role == "assistant") "assistant" else "user"
+                        messages.put(JSONObject().put("role", role).put("content", turn.content))
+                    }
+                    messages.put(JSONObject().put("role", "user").put("content", request.instruction))
+                } else {
+                    messages.put(JSONObject().put("role", "user").put(
                         "content",
                         if (request.cinematicSystem != null) request.instruction
                         else "Goal: " + request.goal + "\nTech: " + request.tech +
                             (if (request.projectContext.isNotBlank()) "\nProject context: " + request.projectContext else "") +
                             "\nRequest: " + request.instruction
                     ))
+                }
                 val body = JSONObject()
                     .put("model", apiKeyStore.openAiModel())
                     .put("messages", messages)

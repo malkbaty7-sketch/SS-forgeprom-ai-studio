@@ -48,13 +48,27 @@ class GeminiEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
             runCatching {
                 val key = apiKeyStore.geminiKey()
                 require(key.isNotBlank()) { "مفتاح Gemini غير مضبوط" }
-                val promptText = buildSystemPrompt(request)
-                val body = JSONObject()
-                    .put("contents", JSONArray().put(
-                        JSONObject().put("parts", JSONArray().put(
-                            JSONObject().put("text", promptText)
-                        ))
+                val body = if (request.assistantSystemInstruction != null) {
+                    val contents = JSONArray()
+                    request.conversationHistory.takeLast(6).forEach { turn ->
+                        contents.put(JSONObject()
+                            .put("role", if (turn.role == "assistant") "model" else "user")
+                            .put("parts", JSONArray().put(JSONObject().put("text", turn.content))))
+                    }
+                    contents.put(JSONObject().put("role", "user").put(
+                        "parts", JSONArray().put(JSONObject().put("text", request.instruction))
                     ))
+                    JSONObject()
+                        .put("systemInstruction", JSONObject().put(
+                            "parts", JSONArray().put(JSONObject().put("text", request.assistantSystemInstruction))
+                        ))
+                        .put("contents", contents)
+                } else {
+                    val promptText = buildSystemPrompt(request)
+                    JSONObject().put("contents", JSONArray().put(
+                        JSONObject().put("parts", JSONArray().put(JSONObject().put("text", promptText)))
+                    ))
+                }
                 val response = execute(body, key)
                 extractText(response)
             }

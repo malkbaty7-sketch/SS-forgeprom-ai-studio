@@ -58,7 +58,9 @@ class BackupCodecTest {
                 confidence = 0.75f,
                 createdAt = 1_700_000_090_000L
             )
-        )
+        ),
+        conversations = listOf(BackupConversation(12, 7, "تسجيل الدخول", 1_700_000_100_000L, 1_700_000_200_000L)),
+        messages = listOf(BackupMessage(14, 12, "user", "أضف تسجيل الدخول مع سياق المتجر", 1_700_000_150_000L))
     )
 
     @Test

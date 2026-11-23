@@ -17,6 +17,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,12 +40,18 @@ import com.forgeprom.studio.core.util.Exporter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /**
  * R2 — تفاصيل المشروع: الموجهات (فتح في المحرر) والتحليلات والتصدير.
  */
 @Composable
-fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: (Long) -> Unit) {
+fun ProjectDetailScreen(
+    container: AppContainer,
+    projectId: Long,
+    onOpenEditor: (Long) -> Unit,
+    onOpenConversations: (Long) -> Unit
+) {
     var attempt by remember(projectId) { mutableStateOf(0) }
     val record by produceState<Result<com.forgeprom.studio.core.data.ProjectEntity?>?>(null, container, projectId, attempt) {
         value = null
@@ -71,12 +81,18 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
     var retryContents by remember(projectId) { mutableStateOf(0) }
     val contents by observeScreenData(source, retryContents)
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val fmt = SimpleDateFormat("d MMM yyyy، HH:mm", Locale.getDefault())
 
     if (project == null) {
         ScreenNotice("المشروع غير موجود أو حُذف.")
         return
     }
+
+    var editMemory by remember(projectId) { mutableStateOf(false) }
+    var memoryText by remember(projectId) { mutableStateOf(project.description) }
+    var memoryError by remember(projectId) { mutableStateOf<String?>(null) }
+    var savingMemory by remember(projectId) { mutableStateOf(false) }
 
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
@@ -92,6 +108,17 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    "ذاكرة المشروع هذه تُستخدم تلقائياً في محادثاته لتقليل تكرار شرح السياق.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedButton(onClick = { onOpenConversations(projectId) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("محادثات المشروع")
+                }
+                OutlinedButton(onClick = { memoryText = project.description; memoryError = null; editMemory = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("تعديل ذاكرة المشروع")
+                }
             }
         }
 
@@ -158,5 +185,50 @@ fun ProjectDetailScreen(container: AppContainer, projectId: Long, onOpenEditor: 
                 }
             }
         }
+    }
+
+    if (editMemory) {
+        AlertDialog(
+            onDismissRequest = { if (!savingMemory) editMemory = false },
+            title = { Text("ذاكرة المشروع") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("اكتب الحقائق والقرارات والتقنيات التي يجب أن تبقى مرجعاً مشتركاً لكل محادثات المشروع. لا تحفظ كلمة مرور أو مفتاحاً سرياً هنا.")
+                    OutlinedTextField(
+                        value = memoryText,
+                        onValueChange = { memoryText = it.take(2_000); memoryError = null },
+                        enabled = !savingMemory,
+                        label = { Text("معلومات المشروع الثابتة") },
+                        supportingText = { Text("${memoryText.length}/2000") },
+                        minLines = 5,
+                        maxLines = 8,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    memoryError?.let { ScreenNotice(it) }
+                }
+            },
+            confirmButton = {
+                TextButton(enabled = !savingMemory, onClick = {
+                    savingMemory = true
+                    scope.launch {
+                        try {
+                            val clean = memoryText.trim()
+                            check(container.db.projectDao().updateDetails(
+                                project.id, project.name, clean, project.tags, System.currentTimeMillis()
+                            ) == 1)
+                            editMemory = false
+                            attempt++
+                        } catch (_: Exception) {
+                            memoryError = "تعذّر حفظ ذاكرة المشروع؛ أعد المحاولة."
+                        } finally {
+                            savingMemory = false
+                        }
+                    }
+                }) { Text(if (savingMemory) "جارٍ الحفظ…" else "حفظ الذاكرة") }
+            },
+            dismissButton = {
+                TextButton(enabled = !savingMemory, onClick = { editMemory = false }) { Text("إلغاء") }
+            }
+        )
     }
 }
