@@ -92,8 +92,16 @@ class GeminiEngine(private val apiKeyStore: ApiKeyStore) : AiEngine {
         }
 
     private fun execute(body: JSONObject, key: String): JSONObject {
+        val url = okhttp3.HttpUrl.Builder()
+            .scheme("https")
+            .host("generativelanguage.googleapis.com")
+            .addPathSegment("v1beta")
+            .addPathSegment("models")
+            .addPathSegment("$MODEL:generateContent")
+            .build()
         val request = Request.Builder()
-            .url("https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$key")
+            .url(url)
+            .header("x-goog-api-key", key)
             .post(body.toString().toRequestBody(jsonMedia))
             .build()
         client.newCall(request).execute().use { resp ->

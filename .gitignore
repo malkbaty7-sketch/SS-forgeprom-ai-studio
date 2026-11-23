@@ -7,9 +7,13 @@
 /captures
 .externalNativeBuild
 .cxx
-local.properties
 app/build/
 keystore.properties
 *.jks
 *.keystore
 icon-work/
+
+# Local env/secrets
+.env
+.env.*
+!.env.example

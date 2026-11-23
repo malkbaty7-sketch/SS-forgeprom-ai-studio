@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 
-export function createJobs(connectionString) {
-  const db = new Pool({ connectionString, max: 4, connectionTimeoutMillis: 2000, statement_timeout: 5000 });
-  db.on('error', () => console.error('Job database connection failed'));
+export function createJobs(connectionString, { pool } = {}) {
+  const db = pool ?? new Pool({ connectionString, max: 4, connectionTimeoutMillis: 2000, statement_timeout: 5000 });
+  if (!pool) db.on('error', () => console.error('Job database connection failed'));
   return {
     async enqueue(account, messages) {
       const id = randomUUID();

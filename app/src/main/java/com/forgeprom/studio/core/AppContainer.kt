@@ -16,6 +16,10 @@ import com.forgeprom.studio.core.settings.SettingsStore
 import com.forgeprom.studio.domain.AnalysisDraft
 import com.forgeprom.studio.domain.CritiqueData
 import com.forgeprom.studio.domain.QualityReportData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** جلسة التوليد الحالية بين الشاشات (analysis → result) */
 class SessionHolder {
@@ -59,10 +63,12 @@ class AppContainer(context: Context) {
     )
     val session: SessionHolder = SessionHolder()
 
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     /** تسجيل نشاط دون تعطيل أي مسار عند الفشل */
     fun logActivity(type: String, detail: String) {
-        runCatching {
-            kotlinx.coroutines.runBlocking {
+        appScope.launch {
+            runCatching {
                 db.activityDao().insert(
                     com.forgeprom.studio.core.data.ActivityEntity(type = type, detail = detail)
                 )

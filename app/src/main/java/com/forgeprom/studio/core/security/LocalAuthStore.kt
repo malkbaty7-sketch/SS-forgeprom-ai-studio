@@ -17,11 +17,11 @@ import javax.crypto.spec.PBEKeySpec
 class LocalAuthStore(context: Context) {
     private val appContext = context.applicationContext
 
-    private fun preferences(): SharedPreferences {
+    private val prefs: SharedPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val masterKey = MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
-        return EncryptedSharedPreferences.create(
+        EncryptedSharedPreferences.create(
             appContext,
             PREFS_NAME,
             masterKey,
@@ -30,28 +30,34 @@ class LocalAuthStore(context: Context) {
         )
     }
 
-    fun hasAccount(): Boolean = preferences().contains(KEY_EMAIL)
+    fun hasAccount(): Boolean = prefs.contains(KEY_EMAIL)
 
     @Synchronized
-    fun createAccount(email: String, password: CharArray): Result<Unit> = runCatching {
-        val prefs = preferences()
-        check(!prefs.contains(KEY_EMAIL)) { "يوجد حساب محلي بالفعل على هذا الجهاز." }
-        val salt = ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
-        val hash = derive(password, salt)
-        check(prefs.edit()
-            .putString(KEY_EMAIL, email.trim().lowercase(Locale.ROOT))
-            .putString(KEY_SALT, salt.toHex())
-            .putString(KEY_HASH, hash.toHex())
-            .commit()) { "تعذر حفظ الحساب بأمان." }
+    fun createAccount(email: String, password: CharArray): Result<Unit> = try {
+        runCatching {
+            check(!prefs.contains(KEY_EMAIL)) { "يوجد حساب محلي بالفعل على هذا الجهاز." }
+            val salt = ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
+            val hash = derive(password, salt)
+            check(prefs.edit()
+                .putString(KEY_EMAIL, email.trim().lowercase(Locale.ROOT))
+                .putString(KEY_SALT, salt.toHex())
+                .putString(KEY_HASH, hash.toHex())
+                .commit()) { "تعذر حفظ الحساب بأمان." }
+        }
+    } finally {
+        password.fill('\u0000')
     }
 
-    fun authenticate(email: String, password: CharArray): Result<Boolean> = runCatching {
-        val prefs = preferences()
-        val savedEmail = prefs.getString(KEY_EMAIL, null) ?: return@runCatching false
-        val salt = prefs.getString(KEY_SALT, null)?.hexToBytes() ?: return@runCatching false
-        val expected = prefs.getString(KEY_HASH, null)?.hexToBytes() ?: return@runCatching false
-        if (!savedEmail.equals(email.trim(), ignoreCase = true)) return@runCatching false
-        MessageDigest.isEqual(expected, derive(password, salt))
+    fun authenticate(email: String, password: CharArray): Result<Boolean> = try {
+        runCatching {
+            val savedEmail = prefs.getString(KEY_EMAIL, null) ?: return@runCatching false
+            val salt = prefs.getString(KEY_SALT, null)?.hexToBytes() ?: return@runCatching false
+            val expected = prefs.getString(KEY_HASH, null)?.hexToBytes() ?: return@runCatching false
+            if (!savedEmail.equals(email.trim(), ignoreCase = true)) return@runCatching false
+            MessageDigest.isEqual(expected, derive(password, salt))
+        }
+    } finally {
+        password.fill('\u0000')
     }
 
     private fun derive(password: CharArray, salt: ByteArray): ByteArray {
