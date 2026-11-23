@@ -17,8 +17,9 @@ class LocalAuthStoreTest {
 
     private fun store(): LocalAuthStore {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        context.deleteSharedPreferences("forgeprom_local_account")
-        return LocalAuthStore(context)
+        val testPreferences = context.getSharedPreferences("local_auth_test", Context.MODE_PRIVATE)
+        testPreferences.edit().clear().commit()
+        return LocalAuthStore(testPreferences)
     }
 
     @Test
