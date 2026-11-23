@@ -30,7 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.forgeprom.studio.R
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.data.PromptLibraryItem
 import com.forgeprom.studio.core.util.Exporter
@@ -55,6 +57,8 @@ fun PromptLibraryScreen(
     val result by observeScreenData(source, retry)
     var query by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.ui544)
+    val copyFailedMessage = stringResource(R.string.ui545)
     val formatter = remember { SimpleDateFormat("d MMM yyyy، HH:mm", Locale.getDefault()) }
 
     Column(
@@ -124,7 +128,7 @@ fun PromptLibraryScreen(
                                     val copied = Exporter.copyToClipboard(context, prompt.content)
                                     Toast.makeText(
                                         context,
-                                        if (copied) "نُسخ الموجه إلى الحافظة" else "تعذّر نسخ الموجه",
+                                        if (copied) copiedMessage else copyFailedMessage,
                                         Toast.LENGTH_SHORT
                                     ).show()
                                 }
@@ -160,7 +164,7 @@ private fun PromptLibraryCard(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(prompt.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                     Text(
-                        "المشروع: ${prompt.projectName} • ${prompt.qualityScore}/100",
+                        stringResource(R.string.ui548, prompt.projectName, prompt.qualityScore),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

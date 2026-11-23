@@ -593,4 +593,22 @@
     <string name="ui532">"Could not load conversation."</string>
     <string name="ui533">"Loading conversations…"</string>
     <string name="ui534">"Could not load conversations."</string>
+    <string name="ui535">"Saved prompts"</string>
+    <string name="ui536">"Open any saved prompt or copy it again from your library."</string>
+    <string name="ui538">"Search prompts"</string>
+    <string name="ui539">"Title, project, or prompt content"</string>
+    <string name="ui540">"Loading prompts…"</string>
+    <string name="ui541">"Could not load saved prompts."</string>
+    <string name="ui542">"No saved prompts yet. Save a prompt inside a project and it will appear here so you can reopen or copy it later."</string>
+    <string name="ui543">"No matching results. Try different search words."</string>
+    <string name="ui544">"Prompt copied to clipboard"</string>
+    <string name="ui545">"Could not copy the prompt"</string>
+    <string name="ui546">"Open"</string>
+    <string name="ui547">"Copy prompt"</string>
+    <string name="ui548">"Project: %1$s • %2$d/100"</string>
+    <string name="ui549">"Saved prompt library"</string>
+    <string name="ui550">"Your smart workspace for shaping ideas."</string>
+    <string name="ui551">"From idea to a clear execution plan"</string>
+    <string name="ui552">"Analyze your request locally, review the assumptions, then produce a professional ready-to-use prompt."</string>
+    <string name="ui553">"Start creating a prompt"</string>
 </resources>
