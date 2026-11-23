@@ -55,8 +55,13 @@ class PendingSceneStore(context: Context) {
         .sortedByDescending { it.savedAt }
         .toList()
 
-    fun clearJob(jobId: String) {
+    /** Remove the persisted record without cancelling work (used by the worker itself). */
+    fun removeJobRecord(jobId: String) {
         prefs.edit().remove(jobKey(jobId)).apply()
+    }
+
+    fun clearJob(jobId: String) {
+        removeJobRecord(jobId)
         runCatching { WorkManager.getInstance(appContext).cancelUniqueWork(uniqueWork(jobId)) }
     }
 
