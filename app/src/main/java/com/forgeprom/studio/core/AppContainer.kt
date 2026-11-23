@@ -11,6 +11,7 @@ import com.forgeprom.studio.core.data.ForgepromDatabase
 import com.forgeprom.studio.core.editor.DraftStore
 import com.forgeprom.studio.core.jobs.PendingSceneStore
 import com.forgeprom.studio.core.security.ApiKeyStore
+import com.forgeprom.studio.core.security.LocalAuthStore
 import com.forgeprom.studio.core.settings.SettingsStore
 import com.forgeprom.studio.domain.AnalysisDraft
 import com.forgeprom.studio.domain.CritiqueData
@@ -43,6 +44,7 @@ class AppContainer(context: Context) {
 
     val settings: SettingsStore = SettingsStore(context)
     val apiKeys: ApiKeyStore = ApiKeyStore(context)
+    val auth: LocalAuthStore = LocalAuthStore(context)
     val drafts: DraftStore = DraftStore(context)
     val backups: BackupRepository = BackupRepository(db)
     val pendingScenes: PendingSceneStore = PendingSceneStore(context)

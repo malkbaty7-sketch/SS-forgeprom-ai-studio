@@ -74,7 +74,7 @@ private val tabs = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavHost(container: AppContainer) {
+fun AppNavHost(container: AppContainer, onSignOut: () -> Unit = {}) {
     val nav: NavHostController = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
@@ -217,7 +217,8 @@ fun AppNavHost(container: AppContainer) {
                             SettingsScreen(
                                 container = container,
                                 onBackup = { nav.navigate(Destinations.BACKUP) },
-                                onAbout = { nav.navigate(Destinations.ABOUT) }
+                                onAbout = { nav.navigate(Destinations.ABOUT) },
+                                onSignOut = onSignOut
                             )
                         }
                         composable(Destinations.BACKUP) { BackupScreen(container = container) }

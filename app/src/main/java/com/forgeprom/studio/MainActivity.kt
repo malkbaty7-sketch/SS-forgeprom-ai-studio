@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.forgeprom.studio.core.settings.AppSettings
 import com.forgeprom.studio.core.settings.LanguageStore
-import com.forgeprom.studio.ui.navigation.AppNavHost
+import com.forgeprom.studio.ui.screens.AuthRoot
 import com.forgeprom.studio.ui.theme.ForgepromTheme
 
 class MainActivity : ComponentActivity() {
@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(
                     LocalLayoutDirection provides if (isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
                 ) {
-                    AppNavHost(container = container)
+                    AuthRoot(container = container)
                 }
             }
         }
