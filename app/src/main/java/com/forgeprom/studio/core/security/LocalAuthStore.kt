@@ -1,0 +1,81 @@
+package com.forgeprom.studio.core.security
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Locale
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.PBEKeySpec
+
+/**
+ * حساب محلي للجهاز فقط؛ لا يُرسل البريد أو كلمة المرور إلى أي خدمة.
+ * يُحفظ البريد ومشتق كلمة المرور داخل EncryptedSharedPreferences، ولا تحفظ كلمة المرور نفسها.
+ */
+class LocalAuthStore(context: Context) {
+    private val appContext = context.applicationContext
+
+    private fun preferences(): SharedPreferences {
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return EncryptedSharedPreferences.create(
+            appContext,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    fun hasAccount(): Boolean = preferences().contains(KEY_EMAIL)
+
+    @Synchronized
+    fun createAccount(email: String, password: CharArray): Result<Unit> = runCatching {
+        val prefs = preferences()
+        check(!prefs.contains(KEY_EMAIL)) { "يوجد حساب محلي بالفعل على هذا الجهاز." }
+        val salt = ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
+        val hash = derive(password, salt)
+        check(prefs.edit()
+            .putString(KEY_EMAIL, email.trim().lowercase(Locale.ROOT))
+            .putString(KEY_SALT, salt.toHex())
+            .putString(KEY_HASH, hash.toHex())
+            .commit()) { "تعذر حفظ الحساب بأمان." }
+    }
+
+    fun authenticate(email: String, password: CharArray): Result<Boolean> = runCatching {
+        val prefs = preferences()
+        val savedEmail = prefs.getString(KEY_EMAIL, null) ?: return@runCatching false
+        val salt = prefs.getString(KEY_SALT, null)?.hexToBytes() ?: return@runCatching false
+        val expected = prefs.getString(KEY_HASH, null)?.hexToBytes() ?: return@runCatching false
+        if (!savedEmail.equals(email.trim(), ignoreCase = true)) return@runCatching false
+        MessageDigest.isEqual(expected, derive(password, salt))
+    }
+
+    private fun derive(password: CharArray, salt: ByteArray): ByteArray {
+        val spec = PBEKeySpec(password, salt, PBKDF2_ITERATIONS, HASH_BITS)
+        return try {
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+        } finally {
+            spec.clearPassword()
+        }
+    }
+
+    private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+    private fun String.hexToBytes(): ByteArray {
+        require(length % 2 == 0) { "بيانات الحساب غير صالحة." }
+        return chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+    }
+
+    companion object {
+        private const val PREFS_NAME = "forgeprom_local_account"
+        private const val KEY_EMAIL = "email"
+        private const val KEY_SALT = "password_salt"
+        private const val KEY_HASH = "password_hash"
+        private const val SALT_BYTES = 16
+        private const val HASH_BITS = 256
+        private const val PBKDF2_ITERATIONS = 210_000
+    }
+}

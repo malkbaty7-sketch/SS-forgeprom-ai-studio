@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +62,7 @@ import androidx.compose.material.icons.outlined.Verified
  * R11 — الإعدادات: الثيم، لغة الموجه، بوابة الموافقة، المفاتيح المشفرة، تشخيص الميزات.
  */
 @Composable
-fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () -> Unit) {
+fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () -> Unit, onSignOut: () -> Unit = {}) {
     val settings by container.settings.settings.collectAsState(initial = AppSettings())
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -72,6 +73,7 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
     var baseUrlError by remember { mutableStateOf<String?>(null) }
     var billingRevision by remember { mutableStateOf(0) }
     var model by remember { mutableStateOf(container.apiKeys.openAiModel()) }
+    var showSignOutConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         baseUrl = container.apiKeys.openAiBaseUrl()
@@ -215,6 +217,22 @@ fun SettingsScreen(container: AppContainer, onBackup: () -> Unit, onAbout: () ->
             }
         }
 
+        OutlinedButton(onClick = { showSignOutConfirmation = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("تسجيل الخروج")
+        }
+        if (showSignOutConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showSignOutConfirmation = false },
+                title = { Text("تسجيل الخروج؟") },
+                text = { Text("سيظل حسابك محفوظاً على هذا الجهاز، ويمكنك تسجيل الدخول مجدداً بكلمة المرور.") },
+                confirmButton = {
+                    Button(onClick = { showSignOutConfirmation = false; onSignOut() }) { Text("تسجيل الخروج") }
+                },
+                dismissButton = {
+                    OutlinedButton(onClick = { showSignOutConfirmation = false }) { Text("إلغاء") }
+                }
+            )
+        }
         OutlinedButton(onClick = onBackup, modifier = Modifier.fillMaxWidth()) {
             Text("النسخ الاحتياطي والاستعادة")
         }

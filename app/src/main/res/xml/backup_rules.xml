@@ -6,4 +6,5 @@
     <exclude domain="database" path="forgeprom.db-shm" />
     <exclude domain="sharedpref" path="forgeprom_secure_keys.xml" />
     <exclude domain="sharedpref" path="forgeprom_editor_drafts.xml" />
+    <exclude domain="sharedpref" path="forgeprom_local_account.xml" />
 </full-backup-content>
