@@ -14,10 +14,12 @@ import javax.crypto.spec.PBEKeySpec
  * حساب محلي للجهاز فقط؛ لا يُرسل البريد أو كلمة المرور إلى أي خدمة.
  * يُحفظ البريد ومشتق كلمة المرور داخل EncryptedSharedPreferences، ولا تحفظ كلمة المرور نفسها.
  */
-class LocalAuthStore(context: Context) {
-    private val appContext = context.applicationContext
-
-    private val prefs: SharedPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+class LocalAuthStore private constructor(
+    private val preferencesFactory: () -> SharedPreferences
+) {
+    /** Production constructor: credentials are always backed by encrypted preferences. */
+    constructor(context: Context) : this({
+        val appContext = context.applicationContext
         val masterKey = MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -28,6 +30,13 @@ class LocalAuthStore(context: Context) {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
+    })
+
+    /** Test-only seam: Robolectric does not provide AndroidKeyStore. */
+    internal constructor(testPreferences: SharedPreferences) : this({ testPreferences })
+
+    private val prefs: SharedPreferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        preferencesFactory()
     }
 
     fun hasAccount(): Boolean = prefs.contains(KEY_EMAIL)
