@@ -36,7 +36,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.forgeprom.studio.R
 import com.forgeprom.studio.core.AppContainer
 import com.forgeprom.studio.core.util.Exporter
 import java.text.SimpleDateFormat
@@ -83,6 +85,8 @@ fun ProjectDetailScreen(
     var retryContents by remember(projectId) { mutableStateOf(0) }
     val contents by observeScreenData(source, retryContents)
     val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.ui544)
+    val copyFailedMessage = stringResource(R.string.ui545)
     val scope = rememberCoroutineScope()
     val fmt = SimpleDateFormat("d MMM yyyy، HH:mm", Locale.getDefault())
 
@@ -154,7 +158,7 @@ fun ProjectDetailScreen(
                             val copied = Exporter.copyToClipboard(context, p.content)
                             Toast.makeText(
                                 context,
-                                if (copied) "نُسخ الموجه إلى الحافظة" else "تعذّر نسخ الموجه",
+                                if (copied) copiedMessage else copyFailedMessage,
                                 Toast.LENGTH_SHORT
                             ).show()
                         }) { Icon(Icons.Outlined.ContentCopy, contentDescription = "نسخ الموجه") }

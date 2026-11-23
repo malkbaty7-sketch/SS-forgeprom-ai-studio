@@ -593,4 +593,22 @@
     <string name="ui532">"تعذّر تحميل المحادثة."</string>
     <string name="ui533">"جارٍ تحميل المحادثات…"</string>
     <string name="ui534">"تعذّر تحميل المحادثات."</string>
+    <string name="ui535">"الموجهات السابقة"</string>
+    <string name="ui536">"افتح أي موجه محفوظ أو انسخه مجدداً من مكتبتك."</string>
+    <string name="ui538">"ابحث في الموجهات"</string>
+    <string name="ui539">"العنوان أو المشروع أو محتوى الموجه"</string>
+    <string name="ui540">"جارٍ تحميل الموجهات…"</string>
+    <string name="ui541">"تعذّر تحميل الموجهات المحفوظة."</string>
+    <string name="ui542">"لا توجد موجهات محفوظة بعد. احفظ الموجه في مشروع ليظهر هنا ويمكنك الرجوع إليه ونسخه لاحقاً."</string>
+    <string name="ui543">"لا توجد نتائج مطابقة. جرّب كلمات بحث أخرى."</string>
+    <string name="ui544">"نُسخ الموجه إلى الحافظة"</string>
+    <string name="ui545">"تعذّر نسخ الموجه"</string>
+    <string name="ui546">"فتح"</string>
+    <string name="ui547">"نسخ الموجه"</string>
+    <string name="ui548">"المشروع: %1$s • %2$d/100"</string>
+    <string name="ui549">"الموجهات السابقة المحفوظة"</string>
+    <string name="ui550">"مساحة عملك الذكية لبناء أفكارك."</string>
+    <string name="ui551">"من الفكرة إلى خطة تنفيذ واضحة"</string>
+    <string name="ui552">"حلّل طلبك محلياً، راجع الافتراضات، ثم أنشئ موجهاً احترافياً جاهزاً."</string>
+    <string name="ui553">"ابدأ إنشاء موجه"</string>
 </resources>
